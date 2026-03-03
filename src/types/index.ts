@@ -10,6 +10,45 @@ export interface Profile {
   created_at: string
 }
 
+export interface ScheduleItem {
+  id: string
+  title: string
+  time?: string
+  venue?: string
+  address?: string
+  notes?: string
+}
+
+export interface HotelItem {
+  id: string
+  name: string
+  url?: string
+  notes?: string
+}
+
+export interface FaqItem {
+  id: string
+  question: string
+  answer: string
+}
+
+export interface EventContent {
+  our_story?: {
+    text?: string
+    photo_url?: string
+  }
+  schedule?: ScheduleItem[]
+  attire?: {
+    dress_code?: string
+    notes?: string
+  }
+  travel?: {
+    notes?: string
+    hotels?: HotelItem[]
+  }
+  faq?: FaqItem[]
+}
+
 export interface Event {
   id: string
   user_id: string
@@ -23,6 +62,7 @@ export interface Event {
   primary_color: string
   accent_color: string
   status: EventStatus
+  content: EventContent | null
   created_at: string
 }
 
@@ -31,6 +71,7 @@ export interface RegistryPool {
   event_id: string
   title: string
   description: string | null
+  image_url: string | null
   target_amount: number | null
   created_at: string
 }
@@ -38,7 +79,7 @@ export interface RegistryPool {
 export interface Contribution {
   id: string
   event_id: string
-  item_id: string | null
+  pool_id: string | null
   contributor_name: string
   contributor_email: string | null
   message: string | null

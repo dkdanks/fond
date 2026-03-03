@@ -20,7 +20,7 @@ export async function sendInvitation({
   const eventUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/e/${eventSlug}`
 
   return resend.emails.send({
-    from: 'Fond <invitations@fond.app>',
+    from: 'Fond <onboarding@resend.dev>',
     to,
     subject: `You're invited to ${eventTitle}`,
     html: `

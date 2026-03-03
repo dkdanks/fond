@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EVENT_TYPE_LABELS, EVENT_TYPE_EMOJIS, formatCurrency, type Event } from '@/types'
 import { formatDate } from '@/lib/utils'
-import { ExternalLink, Users, Gift, Mail, Settings } from 'lucide-react'
+import { ExternalLink, Users, Gift, Mail, Settings, LayoutTemplate } from 'lucide-react'
+import { CopyLinkButton } from '@/components/dashboard/copy-link-button'
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -27,17 +28,18 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     { count: guestCount },
     { count: attendingCount },
     { data: contributions },
-    { data: pool },
+    { data: funds },
   ] = await Promise.all([
     supabase.from('guests').select('*', { count: 'exact', head: true }).eq('event_id', id),
     supabase.from('guests').select('*', { count: 'exact', head: true }).eq('event_id', id).eq('rsvp_status', 'attending'),
     supabase.from('contributions').select('amount').eq('event_id', id).eq('status', 'completed'),
-    supabase.from('registry_pools').select('*').eq('event_id', id).single(),
+    supabase.from('registry_pools').select('*').eq('event_id', id),
   ])
 
   const totalRaised = contributions?.reduce((sum: number, c: { amount: number }) => sum + c.amount, 0) ?? 0
 
   const navItems = [
+    { href: `/events/${id}/website`, icon: LayoutTemplate, label: 'Page content', description: 'Story, schedule, attire, travel info and FAQs' },
     { href: `/events/${id}/guests`, icon: Users, label: 'Guests', description: 'Manage your guest list and RSVPs' },
     { href: `/events/${id}/invitations`, icon: Mail, label: 'Invitations', description: 'Send and track email invitations' },
     { href: `/events/${id}/registry`, icon: Gift, label: 'Registry', description: 'View contributions and fund details' },
@@ -82,7 +84,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         {[
           { label: 'Total raised', value: formatCurrency(totalRaised), sub: `from ${contributions?.length ?? 0} contribution${contributions?.length !== 1 ? 's' : ''}` },
           { label: 'Guests', value: guestCount ?? 0, sub: `${attendingCount ?? 0} attending` },
-          { label: 'Fund', value: pool?.title ?? '—', sub: pool ? 'active' : 'not set up' },
+          { label: 'Funds', value: funds?.length ?? 0, sub: funds?.length ? `${funds.length} gift fund${funds.length !== 1 ? 's' : ''}` : 'none set up' },
         ].map(({ label, value, sub }) => (
           <div
             key={label}
@@ -129,13 +131,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               {process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/{event.slug}
             </p>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => navigator?.clipboard?.writeText(`${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/${event.slug}`)}
-          >
-            Copy link
-          </Button>
+          <CopyLinkButton url={`${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/${event.slug}`} />
         </div>
       )}
     </div>
