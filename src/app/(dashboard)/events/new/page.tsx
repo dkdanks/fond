@@ -291,8 +291,8 @@ export default function NewEventPage() {
             >
               <p className="font-medium mb-1">How Fond earns</p>
               <p className="leading-relaxed text-xs">
-                Fond takes a <strong>4.5% fee</strong> from each contribution. If a guest contributes £100,
-                you receive £95.50. This is always shown clearly to guests before they pay.
+                Fond takes a <strong>4.5% fee</strong> from each contribution. If a guest contributes $100,
+                you receive $95.50. This is always shown clearly to guests before they pay.
               </p>
             </div>
           </div>

@@ -138,6 +138,6 @@ export function calculateFee(amountPence: number): number {
   return Math.round(amountPence * FOND_FEE_RATE)
 }
 
-export function formatCurrency(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`
+export function formatCurrency(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
 }

@@ -37,7 +37,7 @@ export function ProductPreview() {
           <div className="text-center mb-6">
             <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: '#C9A96E' }}>Wedding</p>
             <h2 className="text-2xl font-semibold mb-1" style={{ color: '#1C1C1C' }}>Sarah & James</h2>
-            <p className="text-sm mb-5" style={{ color: '#9CA3AF' }}>14 June 2025 · The Orangery, Kew Gardens</p>
+            <p className="text-sm mb-5" style={{ color: '#9CA3AF' }}>13 September 2026 · The Orangery, Kew Gardens</p>
             <div className="flex gap-3 justify-center">
               <div className="px-4 py-2 rounded-[10px] text-xs font-medium" style={{ background: '#1C1C1C', color: 'white' }}>RSVP</div>
               <div className="px-4 py-2 rounded-[10px] text-xs font-medium" style={{ background: '#C9A96E', color: 'white' }}>Give a gift</div>
@@ -71,7 +71,7 @@ export function ProductPreview() {
       </div>
 
       {/* Tab content */}
-      <div className="px-8 pb-8 pt-6" style={{ background: '#FAFAF9', minHeight: 220 }}>
+      <div className="px-8 pb-8 pt-6 overflow-hidden" style={{ background: '#FAFAF9', height: 300 }}>
         <div className="max-w-xl mx-auto">
 
           {tab === 'Our story' && (
@@ -101,8 +101,8 @@ export function ProductPreview() {
                 {[
                   { time: '2:00 pm', title: 'Ceremony', venue: 'The Orangery, Kew Gardens' },
                   { time: '3:30 pm', title: 'Drinks & canapés', venue: 'The Terrace' },
-                  { time: '6:00 pm', title: 'Wedding breakfast', venue: 'The Great Hall' },
-                  { time: '9:00 pm', title: 'Evening reception', venue: 'The Great Hall' },
+                  { time: '6:00 pm', title: 'Dinner', venue: 'The Great Hall' },
+                  { time: '8:30 pm', title: 'Evening reception', venue: 'The Great Hall' },
                 ].map((item, idx, arr) => (
                   <div key={item.title} className="flex gap-4">
                     <div className="flex flex-col items-center flex-shrink-0">
@@ -138,8 +138,8 @@ export function ProductPreview() {
             <div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Honeymoon', sub: 'Two weeks in Japan', raised: 1240, target: 3000, img: '/images/jet.jpg', pos: 'center 40%' },
-                  { label: 'Our first home', sub: 'Kitchen renovation', raised: 890, target: 2500, img: '/images/cabin.jpg', pos: 'center 60%' },
+                  { label: 'Honeymoon', sub: 'Two weeks in Japan', raised: 1850, target: 6000, img: '/images/jet.jpg', pos: 'center 40%' },
+                  { label: 'Our first home', sub: 'Kitchen renovation', raised: 1200, target: 4500, img: '/images/cabin.jpg', pos: 'center 60%' },
                 ].map((fund) => (
                   <div key={fund.label} className="rounded-xl border overflow-hidden" style={{ background: 'white', borderColor: '#E5E5E4' }}>
                     <div className="h-20 overflow-hidden">
@@ -156,7 +156,7 @@ export function ProductPreview() {
                       <div className="h-1 rounded-full" style={{ background: '#F4F4F3' }}>
                         <div className="h-full rounded-full" style={{ width: `${Math.round((fund.raised / fund.target) * 100)}%`, background: '#C9A96E' }} />
                       </div>
-                      <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>£{fund.raised} raised</p>
+                      <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>${fund.raised} raised</p>
                     </div>
                   </div>
                 ))}

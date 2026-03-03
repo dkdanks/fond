@@ -14,6 +14,6 @@ export function calculateFee(amountPence: number): number {
 
 // Placeholder — replace with real Stripe PaymentIntent creation
 export async function createMockPaymentIntent(amountPence: number) {
-  console.log(`[Stripe mock] Would create PaymentIntent for £${(amountPence / 100).toFixed(2)}`)
+  console.log(`[Stripe mock] Would create PaymentIntent for $${(amountPence / 100).toFixed(2)}`)
   return { id: `mock_pi_${Date.now()}`, status: 'succeeded' }
 }

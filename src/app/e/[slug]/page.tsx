@@ -121,7 +121,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
             </p>
             {totalRaised > 0 && (
               <p className="text-xs mt-2 font-medium" style={{ color: accent }}>
-                £{(totalRaised / 100).toFixed(0)} raised so far
+                ${(totalRaised / 100).toFixed(0)} raised so far
               </p>
             )}
           </Link>

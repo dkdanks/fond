@@ -72,7 +72,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (effectiveAmount < 100) { setError('Minimum contribution is £1.'); return }
+    if (effectiveAmount < 100) { setError('Minimum contribution is $1.'); return }
     setSubmitting(true)
     setError('')
 
