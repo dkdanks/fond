@@ -126,7 +126,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
             {/* Left — copy */}
-            <div className="lg:sticky lg:top-28">
+            <div>
               <p className="text-xs font-medium uppercase tracking-widest mb-6" style={{ color: '#C9A96E' }}>Why Fond?</p>
               <h2 className="text-4xl font-semibold leading-tight mb-8" style={{ color: '#1C1C1C' }}>
                 Not a list.

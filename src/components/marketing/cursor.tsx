@@ -8,6 +8,9 @@ export function Cursor() {
   const pos = useRef({ x: -200, y: -200 })
 
   useEffect(() => {
+    // Only activate on devices with a fine pointer (mouse), not touch screens
+    if (!window.matchMedia('(pointer: fine)').matches) return
+
     function onMove(e: MouseEvent) {
       mouse.current = { x: e.clientX, y: e.clientY }
     }
