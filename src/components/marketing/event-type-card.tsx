@@ -8,9 +8,10 @@ interface EventTypeCardProps {
   description: string
   href: string
   accent: string
+  dark?: boolean
 }
 
-export function EventTypeCard({ label, description, href, accent }: EventTypeCardProps) {
+export function EventTypeCard({ label, description, href, accent, dark }: EventTypeCardProps) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -26,8 +27,13 @@ export function EventTypeCard({ label, description, href, accent }: EventTypeCar
         gap: 6,
         padding: '20px 28px',
         borderRadius: 14,
-        border: `1.5px solid ${hovered ? 'transparent' : '#D4CCBC'}`,
-        background: hovered ? accent : 'transparent',
+        border: dark
+          ? `1.5px solid ${hovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)'}`
+          : `1.5px solid ${hovered ? 'transparent' : '#D4CCBC'}`,
+        background: dark
+          ? (hovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)')
+          : (hovered ? accent : 'transparent'),
+        backdropFilter: dark ? 'blur(10px)' : undefined,
         textDecoration: 'none',
         cursor: 'pointer',
         minWidth: 148,
@@ -40,7 +46,7 @@ export function EventTypeCard({ label, description, href, accent }: EventTypeCar
           fontSize: 14,
           fontWeight: 600,
           letterSpacing: '-0.02em',
-          color: '#2C2B26',
+          color: dark ? '#FFFFFF' : '#2C2B26',
           whiteSpace: 'nowrap',
         }}
       >
@@ -49,7 +55,7 @@ export function EventTypeCard({ label, description, href, accent }: EventTypeCar
       <span
         style={{
           fontSize: 11,
-          color: '#8B8670',
+          color: dark ? 'rgba(255,255,255,0.55)' : '#8B8670',
           textAlign: 'center',
           lineHeight: 1.4,
           whiteSpace: 'nowrap',
