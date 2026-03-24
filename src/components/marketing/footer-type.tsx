@@ -17,18 +17,19 @@ export function FooterType() {
   }
 
   const backgroundImage = pos
-    ? `radial-gradient(circle 180px at ${pos.x}px ${pos.y}px, #919191 0%, #282828 70%)`
-    : `radial-gradient(circle 0px at -9999px -9999px, #919191, #282828)`
+    ? `radial-gradient(circle 220px at ${pos.x}px ${pos.y}px, #C9A96E 0%, #2C2B26 60%)`
+    : `linear-gradient(#3D3928, #3D3928)`
 
   return (
     <div
       ref={ref}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      className="font-semibold tracking-tighter leading-none select-none text-center overflow-hidden w-full"
+      className="font-semibold tracking-tighter leading-none select-none text-center w-full"
       style={{
         fontSize: 'clamp(80px, 22vw, 260px)',
         paddingTop: '2vw',
+        paddingBottom: '1vw',
         backgroundImage,
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',

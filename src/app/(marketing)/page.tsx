@@ -4,6 +4,7 @@ import { ArrowRight, ChevronDown } from 'lucide-react'
 import { FooterType } from '@/components/marketing/footer-type'
 import { EventTypeCard } from '@/components/marketing/event-type-card'
 import { StartCTA } from '@/components/marketing/start-cta'
+import { HowItWorks } from '@/components/marketing/how-it-works'
 
 const EVENT_TYPES = [
   {
@@ -186,6 +187,7 @@ export default function LandingPage() {
               <EventTypeCard key={event.href} {...event} />
             ))}
           </div>
+
         </div>
 
         {/* Scroll indicator */}
@@ -201,64 +203,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section className="border-t" style={{ borderColor: '#D4CCBC' }}>
-        <div className="max-w-6xl mx-auto px-6 pt-24 pb-8 text-center">
-          <p className="text-xs font-medium uppercase tracking-widest" style={{ color: '#B5A98A' }}>
-            How it works
-          </p>
-        </div>
-        <div
-          className="grid grid-cols-1 md:grid-cols-3"
-          style={{ borderTop: '1px solid #D4CCBC' }}
-        >
-          {[
-            {
-              n: '1',
-              title: 'Build your page',
-              body: 'Tell your story, add your details, and share one link with everything guests need.',
-            },
-            {
-              n: '2',
-              title: 'Invite everyone',
-              body: 'Send invitations and manage RSVPs from a single, simple dashboard.',
-            },
-            {
-              n: '3',
-              title: 'Receive what matters',
-              body: "Guests contribute to funds you've chosen — no guessing, no returns.",
-            },
-          ].map((step, i) => (
-            <div
-              key={step.n}
-              className="relative overflow-hidden px-10 pt-8 pb-16"
-              style={{
-                background: '#FAFAF7',
-                borderRight: i < 2 ? '1px solid #D4CCBC' : undefined,
-              }}
-            >
-              <span
-                className="absolute top-0 right-3 select-none pointer-events-none font-semibold"
-                style={{ fontSize: 160, lineHeight: 1, color: '#F0ECE4', letterSpacing: '-0.05em' }}
-                aria-hidden
-              >
-                {step.n}
-              </span>
-              <div className="relative" style={{ marginTop: 48 }}>
-                <h3
-                  className="text-xl font-semibold mb-3"
-                  style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}
-                >
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: '#8B8670', maxWidth: 260 }}>
-                  {step.body}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <HowItWorks />
 
       {/* ── Photo break ── */}
       <div className="w-full" style={{ height: 420 }}>
@@ -302,7 +247,7 @@ export default function LandingPage() {
       <StartCTA />
 
       {/* ── Footer ── */}
-      <footer className="border-t overflow-hidden" style={{ borderColor: '#D4CCBC' }}>
+      <footer className="border-t" style={{ borderColor: '#D4CCBC' }}>
         <FooterType />
         <div className="max-w-6xl mx-auto px-6 py-6">
           <p className="text-xs" style={{ color: '#B5A98A' }}>© {new Date().getFullYear()} Joyabl</p>
