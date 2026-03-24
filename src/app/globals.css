@@ -1,20 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #FAFAF9;
-  --foreground: #1C1C1C;
-  --muted: #6B7280;
-  --muted-bg: #F4F4F3;
-  --border: #E5E5E4;
-  --gold: #C9A96E;
-  --gold-light: #F5EDD9;
+  --background: #FAFAF7;
+  --foreground: #2C2B26;
+  --muted: #8B8670;
+  --muted-bg: #F5F0E8;
+  --border: #D4CCBC;
+  --cream: #F5F0E8;
+  --linen: #C8BFA8;
+  --sand: #B5A98A;
+  --olive: #3D3D2E;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blobA {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(50px, -40px) scale(1.1); }
+}
+
+@keyframes blobB {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(-40px, 30px) scale(0.92); }
+  66%       { transform: translate(20px, 50px) scale(1.06); }
+}
+
+@keyframes blobC {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(30px, 25px) scale(1.08); }
+}
+
+@keyframes scrollBob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(5px); }
 }
 
 * {

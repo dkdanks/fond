@@ -6,10 +6,12 @@
 //   apiVersion: '2024-11-20.acacia',
 // })
 
-export const FOND_FEE_RATE = 0.045
+export const JOYABL_FEE_RATE = 0.0498 // 4.98%
+/** @deprecated use JOYABL_FEE_RATE */
+export const FOND_FEE_RATE = JOYABL_FEE_RATE
 
 export function calculateFee(amountPence: number): number {
-  return Math.round(amountPence * FOND_FEE_RATE)
+  return Math.round(amountPence * JOYABL_FEE_RATE)
 }
 
 // Placeholder — replace with real Stripe PaymentIntent creation

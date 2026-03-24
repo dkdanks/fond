@@ -17,10 +17,10 @@ export function DashboardNav({ profile }: { profile: Profile | null }) {
   }
 
   return (
-    <header className="border-b px-6 py-4" style={{ borderColor: '#E5E5E4', background: '#FAFAF9' }}>
+    <header className="border-b px-6 py-4" style={{ borderColor: '#D4CCBC', background: '#FAFAF7' }}>
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight" style={{ color: '#1C1C1C' }}>
-          fond
+        <Link href="/dashboard" style={{ fontWeight: 500, fontSize: 18, letterSpacing: '-0.07em', color: '#2C2B26' }}>
+          joyabl
         </Link>
         <div className="flex items-center gap-3">
           <span className="text-sm" style={{ color: '#6B7280' }}>
