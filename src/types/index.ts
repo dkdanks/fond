@@ -1,4 +1,4 @@
-export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming'
+export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming' | 'birthday'
 export type RsvpStatus = 'pending' | 'attending' | 'declined'
 export type ContributionStatus = 'pending' | 'completed' | 'refunded'
 export type EventStatus = 'draft' | 'published'
@@ -32,8 +32,36 @@ export interface FaqItem {
   answer: string
 }
 
+export interface WeddingPartyMember {
+  id: string
+  role: 'maid_of_honour' | 'best_man' | 'bridesmaid' | 'groomsman' | 'ring_bearer' | 'flower_person' | 'other'
+  name: string
+  photo_url?: string
+  story?: string
+}
+
+export interface TravelCard {
+  id: string
+  type: 'hotel' | 'car_rental' | 'note'
+  name?: string
+  address?: string
+  website?: string
+  notes?: string
+  button_text?: string
+}
+
 export interface EventContent {
+  welcome?: {
+    greeting?: string
+    show_rsvp?: boolean
+    rsvp_deadline?: string
+    rsvp_button_text?: string
+  }
   our_story?: {
+    introduction?: string
+    story?: string
+    images?: string[]
+    // legacy fields kept for compatibility
     text?: string
     photo_url?: string
   }
@@ -42,11 +70,26 @@ export interface EventContent {
     dress_code?: string
     notes?: string
   }
+  wedding_party?: {
+    introduction?: string
+    members?: WeddingPartyMember[]
+  }
   travel?: {
     notes?: string
+    cards?: TravelCard[]
+    // legacy
     hotels?: HotelItem[]
   }
+  registry?: {
+    note?: string
+    button_text?: string
+  }
   faq?: FaqItem[]
+  _palette?: { primary: string; bg: string }
+  _font?: string
+  _section_order?: string[]
+  _hidden_sections?: string[]
+  custom_sections?: Array<{ id: string; title: string; text?: string; images?: string[] }>
 }
 
 export interface Event {
@@ -107,8 +150,9 @@ export interface Guest {
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   wedding: 'Wedding',
   baby_shower: 'Baby Shower',
-  mitzvah: 'Mitzvah',
+  mitzvah: 'Bar / Bat Mitzvah',
   housewarming: 'Housewarming',
+  birthday: 'Birthday',
 }
 
 export const EVENT_TYPE_DESCRIPTIONS: Record<EventType, string> = {
@@ -116,26 +160,41 @@ export const EVENT_TYPE_DESCRIPTIONS: Record<EventType, string> = {
   baby_shower: 'Welcome your little one with help from the people who love you most',
   mitzvah: 'Mark this milestone with heartfelt gifts from family and friends',
   housewarming: 'Step into your new home with a little help from those who care',
+  birthday: 'Celebrate another trip around the sun with gifts that actually matter',
 }
 
+/** @deprecated use EVENT_TYPE_ICON_NAMES for lucide icons */
 export const EVENT_TYPE_EMOJIS: Record<EventType, string> = {
   wedding: '💍',
   baby_shower: '🍼',
   mitzvah: '✡️',
   housewarming: '🏡',
+  birthday: '🎂',
+}
+
+// Lucide icon names for each event type — import from lucide-react at usage site
+export const EVENT_TYPE_ICON_NAMES: Record<EventType, string> = {
+  wedding:      'Heart',
+  baby_shower:  'Sparkles',
+  mitzvah:      'Star',
+  housewarming: 'Home',
+  birthday:     'Gift',
 }
 
 export const EVENT_TYPE_COLORS: Record<EventType, { primary: string; accent: string }> = {
-  wedding: { primary: '#1C1C1C', accent: '#C9A96E' },
-  baby_shower: { primary: '#2D4A3E', accent: '#A8C5B8' },
-  mitzvah: { primary: '#1E2B5E', accent: '#D4AF37' },
-  housewarming: { primary: '#3D2B1F', accent: '#D4956A' },
+  wedding:      { primary: '#2C2B26', accent: '#B5A98A' },
+  baby_shower:  { primary: '#2C2B26', accent: '#6B7A5E' },
+  mitzvah:      { primary: '#2C2B26', accent: '#C8BFA8' },
+  housewarming: { primary: '#4A3728', accent: '#B5A98A' },
+  birthday:     { primary: '#2C2B26', accent: '#8B8670' },
 }
 
-export const FOND_FEE_RATE = 0.045 // 4.5%
+export const JOYABL_FEE_RATE = 0.0498 // 4.98%
+/** @deprecated use JOYABL_FEE_RATE */
+export const FOND_FEE_RATE = JOYABL_FEE_RATE
 
 export function calculateFee(amountPence: number): number {
-  return Math.round(amountPence * FOND_FEE_RATE)
+  return Math.round(amountPence * JOYABL_FEE_RATE)
 }
 
 export function formatCurrency(cents: number): string {
