@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { EventTypeCard } from './event-type-card'
 
@@ -14,6 +14,7 @@ const EVENT_TYPES = [
 
 export function HeroSection() {
   const [phase, setPhase] = useState<'intro' | 'main'>('intro')
+  const [videoReady, setVideoReady] = useState(false)
   const main = phase === 'main'
 
   useEffect(() => {
@@ -38,27 +39,45 @@ export function HeroSection() {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        // Fallback shown instantly before poster/video loads
+        background: '#2C2B26',
       }}
     >
-      {/* Video */}
+      {/* Poster — loads with the HTML, shown until video is ready */}
+      <div
+        style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          backgroundImage: 'url(/images/hero-poster.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: videoReady ? 0 : 1,
+          transition: 'opacity 1.2s ease',
+        }}
+      />
+
+      {/* Video — fades in once buffered enough to play */}
       <video
         autoPlay
         muted
         loop
         playsInline
+        onCanPlay={() => setVideoReady(true)}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
-          objectFit: 'cover', zIndex: 0,
+          objectFit: 'cover', zIndex: 1,
+          opacity: videoReady ? 1 : 0,
+          transition: 'opacity 1.2s ease',
         }}
       >
-        <source src="/videos/walking_through_field.mp4" type="video/mp4" />
+        <source src="/videos/walking_through_field.webm" type="video/webm" />
+        <source src="/videos/walking_through_field_compressed.mp4" type="video/mp4" />
       </video>
 
       {/* Overlay — lighter during intro so text is the star, darker during main for legibility */}
       <div
         style={{
-          position: 'absolute', inset: 0, zIndex: 1,
+          position: 'absolute', inset: 0, zIndex: 2,
           background: main ? 'rgba(0,0,0,0.50)' : 'rgba(0,0,0,0.18)',
           transition: 'background 1.8s ease',
         }}
