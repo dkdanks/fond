@@ -45,6 +45,7 @@ export default function NewEventPage() {
     const defaults: Record<EventType, string> = {
       wedding: 'Our Honeymoon Fund',
       baby_shower: 'Baby Essentials Fund',
+      birthday: 'Birthday Fund',
       mitzvah: 'Celebration Fund',
       housewarming: 'Home Sweet Home Fund',
     }
