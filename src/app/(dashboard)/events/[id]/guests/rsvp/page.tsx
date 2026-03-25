@@ -98,7 +98,7 @@ export default function RsvpPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-2xl">
+    <div className="px-8 py-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-semibold" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>RSVP</h1>
         <span className="text-xs transition-all" style={{ color: saving ? '#B5A98A' : saved ? '#4CAF50' : 'transparent' }}>

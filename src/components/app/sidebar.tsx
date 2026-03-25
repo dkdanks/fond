@@ -46,7 +46,8 @@ const navStructure = (eventId: string): NavItem[] => [
     label: 'Registry',
     sub: [
       { href: `/events/${eventId}/registry`, label: 'Items' },
-      { href: `/events/${eventId}/registry/payments`, label: 'Payments' },
+      { href: `/events/${eventId}/registry/contributions`, label: 'Contributions' },
+      { href: `/events/${eventId}/registry/payments`, label: 'Payouts' },
     ],
   },
   {

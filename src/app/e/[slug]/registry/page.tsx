@@ -6,7 +6,7 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createClient } from '@/lib/supabase/client'
 import { calculateFee, formatCurrency, type RegistryPool } from '@/types'
-import { ArrowLeft, Check, Heart, ImageIcon, Loader2 } from 'lucide-react'
+import { ArrowLeft, Check, Heart, Loader2 } from 'lucide-react'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -89,6 +89,55 @@ function PaymentForm({
   )
 }
 
+// ── Fund Card ─────────────────────────────────────────────────────────────────
+function FundCard({
+  fund,
+  raised,
+  pct,
+  primaryColor,
+  bgColor,
+  onClick,
+}: {
+  fund: RegistryPool
+  raised: number
+  pct: number | null
+  primaryColor: string
+  bgColor: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group text-left w-full rounded-2xl p-5 border transition-all hover:shadow-sm"
+      style={{ background: 'white', borderColor: `${primaryColor}18` }}
+    >
+      <p className="text-xs font-medium mb-2.5 opacity-50" style={{ color: primaryColor }}>
+        {fund.group_name ?? 'Gift fund'}
+      </p>
+      <p className="font-semibold text-base mb-1 leading-snug" style={{ color: primaryColor, letterSpacing: '-0.01em' }}>
+        {fund.title}
+      </p>
+      {fund.description && (
+        <p className="text-xs mb-3 opacity-55 leading-relaxed line-clamp-2" style={{ color: primaryColor }}>
+          {fund.description}
+        </p>
+      )}
+      {fund.target_amount && pct !== null ? (
+        <div className="mt-3">
+          <div className="h-1 rounded-full overflow-hidden mb-1.5" style={{ background: `${primaryColor}12` }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: primaryColor }} />
+          </div>
+          <p className="text-xs opacity-35" style={{ color: primaryColor }}>{pct}% funded</p>
+        </div>
+      ) : (
+        <p className="text-xs mt-3 opacity-35 group-hover:opacity-60 transition-opacity" style={{ color: primaryColor }}>
+          Contribute →
+        </p>
+      )}
+    </button>
+  )
+}
+
 // ── Main registry page ────────────────────────────────────────────────────────
 export default function RegistryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -96,6 +145,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   const [bgColor, setBgColor] = useState('#F5F0E8')
   const [font, setFont] = useState('Inter')
   const [eventId, setEventId] = useState<string | null>(null)
+  const [eventTitle, setEventTitle] = useState('')
   const [funds, setFunds] = useState<RegistryPool[]>([])
   const [progress, setProgress] = useState<FundProgress>({})
   const [step, setStep] = useState<Step>('pick')
@@ -122,6 +172,13 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
     if (url.searchParams.get('success') === '1') {
       setDone(true)
     }
+
+    // Pre-fill name and email from URL params (e.g. from invitation email links)
+    const params = new URLSearchParams(window.location.search)
+    const n = params.get('name')
+    const e = params.get('email')
+    if (n) setName(n)
+    if (e) setEmail(e)
   }, [])
 
   useEffect(() => {
@@ -134,6 +191,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
         .single()
       if (!ev) return
       setEventId(ev.id)
+      setEventTitle(ev.title ?? '')
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedPalette = (ev.content as any)?._palette
@@ -269,70 +327,84 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
       </nav>
 
       {/* ── Step 1: Pick fund ─────────────────────────────────────────────── */}
-      {step === 'pick' && (
-        <div className="max-w-lg mx-auto px-6 pt-10 pb-16">
-          <h1 className="text-2xl font-semibold mb-1" style={{ color: primaryColor }}>Choose a fund</h1>
-          <p className="text-sm mb-8 opacity-55" style={{ color: primaryColor }}>
-            Pick something to contribute towards, or give a general gift.
-          </p>
+      {step === 'pick' && (() => {
+        // Group funds by group_name; ungrouped first
+        const grouped: Record<string, RegistryPool[]> = {}
+        for (const fund of funds) {
+          const key = fund.group_name ?? '__ungrouped__'
+          if (!grouped[key]) grouped[key] = []
+          grouped[key].push(fund)
+        }
+        const sortedGroups = Object.entries(grouped).sort(([a], [b]) => {
+          if (a === '__ungrouped__') return -1
+          if (b === '__ungrouped__') return 1
+          return a.localeCompare(b)
+        })
 
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => { setSelectedFund(null); setStep('details') }}
-              className="w-full text-left rounded-2xl border px-5 py-4 transition-all hover:shadow-sm"
-              style={{ background: 'white', borderColor: `${primaryColor}20` }}
-            >
-              <p className="font-medium mb-0.5" style={{ color: primaryColor }}>Give to anything</p>
-              <p className="text-sm opacity-55" style={{ color: primaryColor }}>Let them decide where your gift goes.</p>
-            </button>
+        return (
+          <>
+            {/* Hero */}
+            <div className="px-8 py-16 text-center border-b" style={{ borderColor: `${primaryColor}12` }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-4 opacity-35" style={{ color: primaryColor }}>Registry</p>
+              <h1 className="text-4xl font-semibold mb-3" style={{ color: primaryColor, letterSpacing: '-0.03em' }}>
+                {eventTitle}
+              </h1>
+              <p className="text-sm opacity-50" style={{ color: primaryColor }}>
+                Choose a gift or contribute to any of our funds below
+              </p>
+            </div>
 
-            {funds.map(fund => {
-              const raised = progress[fund.id] ?? 0
-              const pct = fund.target_amount ? Math.min(Math.round((raised / fund.target_amount) * 100), 100) : null
-              return (
-                <button
-                  key={fund.id}
-                  onClick={() => { setSelectedFund(fund); setStep('details') }}
-                  className="w-full text-left rounded-2xl border overflow-hidden transition-all hover:shadow-sm"
-                  style={{ background: 'white', borderColor: `${primaryColor}20` }}
-                >
-                  {fund.image_url ? (
-                    <div className="w-full h-40 bg-cover bg-center" style={{ backgroundImage: `url(${fund.image_url})` }} />
-                  ) : (
-                    <div className="w-full h-28 flex items-center justify-center" style={{ background: `${primaryColor}08` }}>
-                      <ImageIcon size={20} style={{ color: `${primaryColor}40` }} />
-                    </div>
+            {/* Grid */}
+            <div className="px-6 md:px-12 py-10 max-w-6xl mx-auto">
+              {/* "Give a general gift" banner */}
+              <button
+                onClick={() => { setSelectedFund(null); setStep('details') }}
+                className="w-full mb-10 flex items-center justify-between px-8 py-6 rounded-2xl transition-all hover:shadow-sm"
+                style={{ background: 'white', border: `1px solid ${primaryColor}15` }}
+              >
+                <div>
+                  <p className="font-semibold text-base mb-0.5" style={{ color: primaryColor }}>Give a general gift</p>
+                  <p className="text-sm opacity-50" style={{ color: primaryColor }}>Let the couple decide where your gift goes.</p>
+                </div>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
+                  style={{ background: `${primaryColor}10`, color: primaryColor }}>→</div>
+              </button>
+
+              {/* Grouped fund cards */}
+              {sortedGroups.map(([groupName, groupFunds]) => (
+                <div key={groupName} className="mb-12">
+                  {groupName !== '__ungrouped__' && (
+                    <h2 className="text-xl font-semibold mb-6" style={{ color: primaryColor, letterSpacing: '-0.02em' }}>
+                      {groupName}
+                    </h2>
                   )}
-                  <div className="px-5 py-4">
-                    <p className="font-medium mb-0.5" style={{ color: primaryColor }}>{fund.title}</p>
-                    {fund.description && (
-                      <p className="text-sm opacity-55 mb-3" style={{ color: primaryColor }}>{fund.description}</p>
-                    )}
-                    {fund.target_amount && pct !== null && (
-                      <>
-                        <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: `${primaryColor}15` }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: primaryColor }} />
-                        </div>
-                        <p className="text-xs opacity-40" style={{ color: primaryColor }}>
-                          {formatCurrency(raised)} of {formatCurrency(fund.target_amount)} · {pct}%
-                        </p>
-                      </>
-                    )}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {groupFunds.map(fund => {
+                      const raised = progress[fund.id] ?? 0
+                      const pct = fund.target_amount ? Math.min(Math.round((raised / fund.target_amount) * 100), 100) : null
+                      return (
+                        <FundCard
+                          key={fund.id}
+                          fund={fund}
+                          raised={raised}
+                          pct={pct}
+                          primaryColor={primaryColor}
+                          bgColor={bgColor}
+                          onClick={() => { setSelectedFund(fund); setStep('details') }}
+                        />
+                      )
+                    })}
                   </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* ── Step 2: Details form ──────────────────────────────────────────── */}
       {step === 'details' && (
         <div className="max-w-md mx-auto px-6 pt-10 pb-16">
-          {selectedFund?.image_url && (
-            <div className="w-full h-36 rounded-2xl bg-cover bg-center mb-6" style={{ backgroundImage: `url(${selectedFund.image_url})` }} />
-          )}
-
           <h1 className="text-2xl font-semibold mb-1" style={{ color: primaryColor }}>
             {selectedFund ? selectedFund.title : 'Give a gift'}
           </h1>

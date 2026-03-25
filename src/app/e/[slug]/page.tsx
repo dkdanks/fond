@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Event, EventContent, WeddingPartyMember } from '@/types'
+import { PasswordGate } from '@/components/event/password-gate'
 import { formatDate } from '@/lib/utils'
 import type { Metadata } from 'next'
 
@@ -74,13 +75,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function PublicEventPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PublicEventPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ name?: string; email?: string }>
+}) {
   const { slug } = await params
+  const { name: guestName, email: guestEmail } = await searchParams
+  const guestParamStr = guestName || guestEmail
+    ? '?' + new URLSearchParams({ ...(guestName ? { name: guestName } : {}), ...(guestEmail ? { email: guestEmail } : {}) }).toString()
+    : ''
   const supabase = await createClient()
 
   const { data: eventData } = await supabase
     .from('events')
-    .select('*')
+    .select('*, access_password')
     .eq('slug', slug)
     .single()
 
@@ -240,22 +251,27 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
           </section>
         )
 
-      case 'registry':
+      case 'registry': {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const registryContent = c.registry as any
+        const buttonText = registryContent?.button_text || 'View registry'
+        const note = registryContent?.note
         return (
-          <section key="registry" className="px-8 py-16 border-t text-center" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="registry" className="px-8 py-16 text-center border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-6 opacity-40">Registry</p>
-            {c.registry?.note && (
-              <p className="text-base opacity-70 max-w-xl mx-auto mb-8 leading-relaxed">{c.registry.note}</p>
+            {note && (
+              <p className="text-base opacity-70 max-w-xl mx-auto mb-8 leading-relaxed">{note}</p>
             )}
             <Link
-              href={`/e/${slug}/registry`}
-              className="px-8 py-3 rounded-full text-sm font-medium border inline-block"
+              href={`/e/${slug}/registry${guestParamStr}`}
+              className="inline-block px-8 py-3 rounded-full text-sm font-medium border transition-opacity hover:opacity-70"
               style={{ borderColor: primaryColor, color: primaryColor }}
             >
-              {c.registry?.button_text || 'View registry'}
+              {buttonText}
             </Link>
           </section>
         )
+      }
 
       case 'faq':
         if (!hasFaq) return null
@@ -305,7 +321,10 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
     }
   }
 
-  return (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accessPassword = (eventData as any).access_password as string | null | undefined
+
+  const pageContent = (
     <div style={{ fontFamily: `'${font}', serif`, background: bgColor, color: primaryColor, minHeight: '100vh' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600;700&display=swap');`}</style>
 
@@ -338,7 +357,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
           {c.welcome?.show_rsvp !== false && (
             <div className="flex items-center justify-center gap-4">
               <Link
-                href={`/e/${slug}/rsvp`}
+                href={`/e/${slug}/rsvp${guestParamStr}`}
                 className="px-8 py-3 rounded-full text-sm font-medium"
                 style={{ background: primaryColor, color: bgColor }}
               >
@@ -361,4 +380,13 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
       </div>
     </div>
   )
+
+  if (accessPassword) {
+    return (
+      <PasswordGate correctPassword={accessPassword}>
+        {pageContent}
+      </PasswordGate>
+    )
+  }
+  return pageContent
 }

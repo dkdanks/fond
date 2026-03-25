@@ -79,7 +79,6 @@ export default function RegistryPage() {
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [settings, setSettings] = useState<RegistrySettings>(DEFAULT_SETTINGS)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [rightTab, setRightTab] = useState<'preview' | 'contributions'>('preview')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   // Add item form
@@ -576,92 +575,46 @@ export default function RegistryPage() {
             )}
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b" style={{ borderColor: '#F0EDE8' }}>
-            {(['preview', 'contributions'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setRightTab(t)}
-                className="flex-1 py-2.5 text-xs font-medium capitalize transition-colors"
-                style={{
-                  color: rightTab === t ? '#2C2B26' : '#B5A98A',
-                  borderBottom: rightTab === t ? '2px solid #2C2B26' : '2px solid transparent',
-                  marginBottom: -1,
-                }}
-              >
-                {t === 'contributions' ? `Contributions${contributions.length > 0 ? ` (${contributions.length})` : ''}` : 'Preview'}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Panel body */}
         <div className="flex-1 overflow-y-auto">
-          {rightTab === 'preview' && (
-            <div className="p-4 flex flex-col gap-3">
-              {items.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Gift size={20} className="mx-auto mb-2" style={{ color: '#C8BFA8' }} />
-                  <p className="text-xs" style={{ color: '#B5A98A' }}>Items you add will appear here</p>
-                </div>
-              ) : Object.entries(grouped).map(([group, groupItems]) => (
-                <div key={group}>
-                  {group !== '__ungrouped__' && (
-                    <p className="text-xs font-semibold uppercase tracking-wide mb-2 px-1" style={{ color: '#B5A98A' }}>{group}</p>
-                  )}
-                  {groupItems.map(item => {
-                    const raised = raisedFor(item.id)
-                    const progress = item.target_amount ? Math.min((raised / item.target_amount) * 100, 100) : 0
-                    return (
-                      <div key={item.id} className="rounded-xl border overflow-hidden mb-2" style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}>
-                        {item.image_url && (
-                          <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${item.image_url})` }} />
+          <div className="p-4 flex flex-col gap-3">
+            {items.length === 0 ? (
+              <div className="py-12 text-center">
+                <Gift size={20} className="mx-auto mb-2" style={{ color: '#C8BFA8' }} />
+                <p className="text-xs" style={{ color: '#B5A98A' }}>Items you add will appear here</p>
+              </div>
+            ) : Object.entries(grouped).map(([group, groupItems]) => (
+              <div key={group}>
+                {group !== '__ungrouped__' && (
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2 px-1" style={{ color: '#B5A98A' }}>{group}</p>
+                )}
+                {groupItems.map(item => {
+                  const raised = raisedFor(item.id)
+                  const progress = item.target_amount ? Math.min((raised / item.target_amount) * 100, 100) : 0
+                  return (
+                    <div key={item.id} className="rounded-xl border overflow-hidden mb-2" style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}>
+                      {item.image_url && (
+                        <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${item.image_url})` }} />
+                      )}
+                      <div className="p-3">
+                        <p className="text-xs font-medium mb-0.5" style={{ color: '#2C2B26' }}>{item.title}</p>
+                        {settings.show_amounts && item.target_amount && (
+                          <p className="text-xs mb-1.5" style={{ color: '#8B8670' }}>{formatCurrency(item.target_amount)}</p>
                         )}
-                        <div className="p-3">
-                          <p className="text-xs font-medium mb-0.5" style={{ color: '#2C2B26' }}>{item.title}</p>
-                          {settings.show_amounts && item.target_amount && (
-                            <p className="text-xs mb-1.5" style={{ color: '#8B8670' }}>{formatCurrency(item.target_amount)}</p>
-                          )}
-                          {item.target_amount !== null && (
-                            <div className="h-1 rounded-full overflow-hidden" style={{ background: '#E8E3D9' }}>
-                              <div className="h-full rounded-full" style={{ width: `${progress}%`, background: '#8B8670' }} />
-                            </div>
-                          )}
-                        </div>
+                        {item.target_amount !== null && (
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: '#E8E3D9' }}>
+                            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: '#8B8670' }} />
+                          </div>
+                        )}
                       </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {rightTab === 'contributions' && (
-            <div className="p-4">
-              {contributions.length === 0 ? (
-                <div className="py-12 text-center">
-                  <p className="text-xs" style={{ color: '#B5A98A' }}>No contributions yet</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {contributions.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(c => (
-                    <div key={c.id} className="rounded-xl border p-3" style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}>
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className="text-xs font-medium" style={{ color: '#2C2B26' }}>{c.contributor_name}</p>
-                        <p className="text-xs font-semibold" style={{ color: '#4CAF50' }}>{formatCurrency(c.amount)}</p>
-                      </div>
-                      {c.message && <p className="text-xs italic" style={{ color: '#8B8670' }}>"{c.message}"</p>}
-                      <p className="text-xs mt-1" style={{ color: '#C8BFA8' }}>{new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                     </div>
-                  ))}
-                  <div className="mt-2 pt-3 border-t text-center" style={{ borderColor: '#F0EDE8' }}>
-                    <p className="text-xs font-medium" style={{ color: '#8B8670' }}>Total raised</p>
-                    <p className="text-xl font-semibold" style={{ color: '#2C2B26' }}>{formatCurrency(totalRaised)}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

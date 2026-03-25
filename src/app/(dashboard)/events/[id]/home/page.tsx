@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { CalendarDays, LayoutTemplate, Users, Gift, ArrowRight, MapPin } from 'lucide-react'
+import { CalendarDays, LayoutTemplate, Users, Gift, ArrowRight, MapPin, ExternalLink } from 'lucide-react'
 import { CopyLinkButton } from '@/components/dashboard/copy-link-button'
 import { PublishButton } from '@/components/dashboard/publish-button'
 import { EVENT_TYPE_LABELS, formatCurrency, type Event } from '@/types'
@@ -58,12 +58,9 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
 
       {/* Hero card */}
       <div
-        className="rounded-3xl border-x border-b overflow-hidden mb-8"
+        className="rounded-3xl border overflow-hidden mb-8"
         style={{ background: 'white', borderColor: '#E8E3D9' }}
       >
-        {/* Gradient strip */}
-        <div style={{ height: 3, background: 'linear-gradient(to right, #C8BFA8, #E8E3D9)' }} />
-
         <div className="p-8 flex items-start justify-between gap-8">
           {/* Left: title, date, badges */}
           <div className="flex-1 min-w-0">
@@ -163,6 +160,18 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-4">
             <CopyLinkButton url={eventUrl} />
+            {event.status === 'published' && (
+              <a
+                href={eventUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+                style={{ borderColor: '#E8E3D9', background: 'white', color: '#2C2B26' }}
+              >
+                <ExternalLink size={12} />
+                View site
+              </a>
+            )}
             {event.status !== 'published' && (
               <PublishButton eventId={id} />
             )}

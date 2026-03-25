@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Guest } from '@/types'
 import {
   Plus, ChevronDown, Trash2, Check, Upload,
   AlertCircle, CheckCircle2, Mail, Users, X, Search,
-  Download, Edit2, Tag, Phone, ChevronUp
+  Download, Edit2, Tag, Phone, ChevronUp, MessageSquare
 } from 'lucide-react'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -249,6 +249,9 @@ export default function GuestsPage() {
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Expanded RSVP responses
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
   // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editData, setEditData] = useState<Partial<Guest>>({})
@@ -403,18 +406,45 @@ export default function GuestsPage() {
   }
 
   function exportCSV() {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'RSVP Status', 'Plus One', 'Tags', 'Note', 'Invited At']
-    const rows = guests.map(g => [
-      g.first_name ?? g.name.split(' ')[0],
-      g.last_name ?? g.name.split(' ').slice(1).join(' '),
-      g.email,
-      g.phone ?? '',
-      g.rsvp_status,
-      g.plus_one ? 'Yes' : 'No',
-      (g.tags ?? []).join('; '),
-      g.note ?? '',
-      g.invitation_sent_at ? new Date(g.invitation_sent_at).toLocaleDateString() : '',
-    ])
+    // Parse every guest's message into a { question -> answer } map
+    const parseAnswers = (message: string | null): Record<string, string> => {
+      if (!message) return {}
+      return Object.fromEntries(
+        message.split('\n').filter(Boolean).map(line => {
+          const idx = line.indexOf(': ')
+          return idx > -1 ? [line.slice(0, idx), line.slice(idx + 2)] : ['Message', line]
+        })
+      )
+    }
+
+    // Collect all unique RSVP question headers in the order they first appear
+    const questionHeaders: string[] = []
+    const seenQs = new Set<string>()
+    for (const g of guests) {
+      for (const q of Object.keys(parseAnswers(g.message ?? null))) {
+        if (!seenQs.has(q)) { seenQs.add(q); questionHeaders.push(q) }
+      }
+    }
+
+    const baseHeaders = ['First Name', 'Last Name', 'Email', 'Phone', 'RSVP Status', 'Plus One', 'Tags', 'Note', 'Invited At']
+    const headers = [...baseHeaders, ...questionHeaders]
+
+    const rows = guests.map(g => {
+      const answers = parseAnswers(g.message ?? null)
+      return [
+        g.first_name ?? g.name.split(' ')[0],
+        g.last_name ?? g.name.split(' ').slice(1).join(' '),
+        g.email,
+        g.phone ?? '',
+        g.rsvp_status,
+        g.plus_one ? 'Yes' : 'No',
+        (g.tags ?? []).join('; '),
+        g.note ?? '',
+        g.invitation_sent_at ? new Date(g.invitation_sent_at).toLocaleDateString() : '',
+        ...questionHeaders.map(q => answers[q] ?? ''),
+      ]
+    })
+
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -475,7 +505,7 @@ export default function GuestsPage() {
   const csvRows = csvText.trim() ? parseCsvGuests(csvText) : []
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-8 py-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -738,43 +768,6 @@ export default function GuestsPage() {
         </div>
       )}
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div
-          className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border"
-          style={{ background: 'white', borderColor: '#E8E3D9' }}
-        >
-          <span className="text-sm font-medium" style={{ color: '#2C2B26' }}>{selected.size} selected</span>
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={deleteSelected}
-              disabled={deletingSelected}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-              style={{ borderColor: '#EF4444', color: '#EF4444', background: 'white' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
-            >
-              <Trash2 size={12} /> {deletingSelected ? 'Deleting…' : 'Delete selected'}
-            </button>
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-              style={{ borderColor: '#E8E3D9', color: '#2C2B26', background: 'white' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
-            >
-              <Mail size={12} /> Send invitation
-            </button>
-          </div>
-          <button
-            className="ml-auto text-xs flex items-center gap-1"
-            style={{ color: '#B5A98A' }}
-            onClick={() => setSelected(new Set())}
-          >
-            <X size={13} /> Deselect all
-          </button>
-        </div>
-      )}
-
       {/* Search + filter bar */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
@@ -826,7 +819,8 @@ export default function GuestsPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E3D9' }}>
+        <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
@@ -855,11 +849,23 @@ export default function GuestsPage() {
               {filtered.map((guest, idx) => {
                 const isEditing = editingId === guest.id
                 const isSelected = selected.has(guest.id)
+                const isExpanded = expandedId === guest.id
                 const firstName = guest.first_name ?? guest.name.split(' ')[0]
                 const lastName = guest.last_name ?? guest.name.split(' ').slice(1).join(' ')
+
+                // Parse message into question/answer pairs
+                const rsvpAnswers = guest.message
+                  ? guest.message.split('\n').filter(Boolean).map(line => {
+                      const colonIdx = line.indexOf(': ')
+                      return colonIdx > -1
+                        ? { q: line.slice(0, colonIdx), a: line.slice(colonIdx + 2) }
+                        : { q: 'Message', a: line }
+                    })
+                  : []
+
                 return (
+                  <React.Fragment key={guest.id}>
                   <tr
-                    key={guest.id}
                     className="group"
                     style={{ borderTop: idx > 0 ? '1px solid #F0EDE8' : undefined, background: isEditing ? '#FAFAF7' : isSelected ? '#FAFAF7' : 'white' }}
                   >
@@ -1015,38 +1021,111 @@ export default function GuestsPage() {
                           {guest.plus_one ? <Check size={14} /> : '—'}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => startEdit(guest)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ color: '#8B8670' }}
-                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(44,43,38,0.06)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                              title="Edit"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                            <button
-                              onClick={() => { if (confirm('Remove this guest?')) deleteGuest(guest.id) }}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ color: '#D4CCBC' }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#EF4444'; (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#D4CCBC'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                              title="Delete"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                          <div className="flex items-center gap-1">
+                            {rsvpAnswers.length > 0 && (
+                              <button
+                                onClick={() => setExpandedId(isExpanded ? null : guest.id)}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                                style={{ color: isExpanded ? '#2C2B26' : '#B5A98A', background: isExpanded ? 'rgba(44,43,38,0.06)' : 'transparent' }}
+                                title={`${rsvpAnswers.length} RSVP response${rsvpAnswers.length !== 1 ? 's' : ''}`}
+                              >
+                                <MessageSquare size={13} />
+                              </button>
+                            )}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => startEdit(guest)}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                                style={{ color: '#8B8670' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(44,43,38,0.06)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                title="Edit"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => { if (confirm('Remove this guest?')) deleteGuest(guest.id) }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                                style={{ color: '#D4CCBC' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#EF4444'; (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#D4CCBC'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                                title="Delete"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </>
                     )}
                   </tr>
+                  {isExpanded && !isEditing && rsvpAnswers.length > 0 && (
+                    <tr style={{ borderTop: '1px solid #F0EDE8', background: '#FAFAF7' }}>
+                      <td />
+                      <td colSpan={7} className="px-4 py-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3">
+                          {rsvpAnswers.map(({ q, a }, i) => (
+                            <div key={i}>
+                              <p className="text-xs font-medium mb-0.5" style={{ color: '#B5A98A' }}>{q}</p>
+                              <p className="text-sm" style={{ color: '#2C2B26' }}>{a}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 )
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
+
+      {/* Floating bulk action bar */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: selected.size > 0 ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(120%)',
+          zIndex: 50,
+          transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          background: 'white',
+          borderColor: '#E8E3D9',
+        }}
+        className="flex items-center gap-3 px-5 py-3 rounded-2xl border shadow-xl"
+      >
+        <span className="text-sm font-medium" style={{ color: '#2C2B26' }}>{selected.size} selected</span>
+        <div className="w-px h-4 shrink-0" style={{ background: '#E8E3D9' }} />
+        <button
+          onClick={deleteSelected}
+          disabled={deletingSelected}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+          style={{ borderColor: '#EF4444', color: '#EF4444', background: 'white' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
+        >
+          <Trash2 size={12} /> {deletingSelected ? 'Deleting…' : 'Delete'}
+        </button>
+        <button
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+          style={{ borderColor: '#E8E3D9', color: '#2C2B26', background: 'white' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
+        >
+          <Mail size={12} /> Send invitation
+        </button>
+        <div className="w-px h-4 shrink-0" style={{ background: '#E8E3D9' }} />
+        <button
+          className="flex items-center gap-1 text-xs transition-colors"
+          style={{ color: '#B5A98A' }}
+          onClick={() => setSelected(new Set())}
+        >
+          <X size={13} />
+        </button>
+      </div>
     </div>
   )
 }
