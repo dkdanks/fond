@@ -1,8 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
+import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  if (!checkRateLimit(`check-slug:${getIp(request)}`, 30, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
+  }
   const { searchParams } = new URL(request.url)
   const raw = searchParams.get('slug') ?? ''
   const slug = slugify(raw)

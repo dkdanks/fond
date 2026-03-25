@@ -44,17 +44,6 @@ export default function LoginPage() {
         </Link>
       </p>
 
-      {/* Demo credentials hint */}
-      <div
-        className="rounded-xl p-4 mb-6 text-xs leading-relaxed"
-        style={{ background: '#F5EDD9', color: '#8B6914' }}
-      >
-        <p className="font-medium mb-1">Demo accounts</p>
-        <p>demo@fond.app / demo1234 — sample wedding</p>
-        <p>demo2@fond.app / demo1234 — sample baby shower</p>
-        <p>you@fond.app / demo1234 — start fresh</p>
-      </div>
-
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           id="email"
@@ -65,16 +54,23 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <Input
-          id="password"
-          label="Password"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          error={error}
-        />
+        <div>
+          <Input
+            id="password"
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            error={error}
+          />
+          <div className="mt-1.5 text-right">
+            <Link href="/forgot-password" className="text-xs" style={{ color: '#8B8670' }}>
+              Forgot password?
+            </Link>
+          </div>
+        </div>
         <Button type="submit" disabled={loading} className="mt-2 w-full">
           {loading ? 'Signing in…' : 'Sign in'}
         </Button>

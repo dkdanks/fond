@@ -21,7 +21,7 @@ export default function SignupPage() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name } },
@@ -33,8 +33,14 @@ export default function SignupPage() {
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // If email confirmation is enabled in Supabase, session will be null
+    // until the user clicks the verification link in their email.
+    if (data.session) {
+      router.push('/dashboard')
+      router.refresh()
+    } else {
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+    }
   }
 
   return (
@@ -85,7 +91,10 @@ export default function SignupPage() {
       </form>
 
       <p className="mt-6 text-xs text-center" style={{ color: '#9CA3AF' }}>
-        By signing up you agree to our terms of service.
+        By signing up you agree to our{' '}
+        <Link href="/terms" style={{ color: '#6B7280' }}>terms of service</Link>
+        {' '}and{' '}
+        <Link href="/privacy" style={{ color: '#6B7280' }}>privacy policy</Link>.
       </p>
     </div>
   )

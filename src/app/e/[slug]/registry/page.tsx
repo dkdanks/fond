@@ -2,19 +2,94 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createClient } from '@/lib/supabase/client'
 import { calculateFee, formatCurrency, type RegistryPool } from '@/types'
 import { ArrowLeft, Check, Heart, ImageIcon, Loader2 } from 'lucide-react'
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+
 const QUICK_AMOUNTS = [2500, 5000, 10000, 25000]
 
-type Step = 'pick' | 'contribute'
+type Step = 'pick' | 'details' | 'payment'
 type SelectedFund = RegistryPool | null | undefined
 
 interface FundProgress {
-  [poolId: string]: number // cents raised
+  [poolId: string]: number
 }
 
+// ── Inner payment form (must be inside <Elements>) ───────────────────────────
+function PaymentForm({
+  amountCents,
+  name,
+  primaryColor,
+  bgColor,
+  onSuccess,
+  onError,
+}: {
+  amountCents: number
+  name: string
+  primaryColor: string
+  bgColor: string
+  onSuccess: () => void
+  onError: (msg: string) => void
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handlePay(e: React.FormEvent) {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setSubmitting(true)
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      redirect: 'if_required',
+      confirmParams: {
+        return_url: `${window.location.origin}${window.location.pathname}?success=1`,
+      },
+    })
+
+    if (error) {
+      onError(error.message ?? 'Payment failed. Please try again.')
+      setSubmitting(false)
+      return
+    }
+
+    if (paymentIntent?.status === 'succeeded') {
+      onSuccess()
+    } else {
+      onError('Payment incomplete. Please try again.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handlePay}>
+      <PaymentElement
+        options={{
+          layout: 'tabs',
+          wallets: { applePay: 'auto', googlePay: 'auto' },
+        }}
+      />
+      <button
+        type="submit"
+        disabled={submitting || !stripe}
+        className="mt-6 w-full py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
+        style={{ background: primaryColor, color: bgColor }}
+      >
+        {submitting
+          ? <><Loader2 size={14} className="animate-spin" /> Processing…</>
+          : <><Check size={14} /> Pay {formatCurrency(amountCents)}</>
+        }
+      </button>
+    </form>
+  )
+}
+
+// ── Main registry page ────────────────────────────────────────────────────────
 export default function RegistryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const [primaryColor, setPrimaryColor] = useState('#2C2B26')
@@ -26,16 +101,28 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   const [step, setStep] = useState<Step>('pick')
   const [selectedFund, setSelectedFund] = useState<SelectedFund>(undefined)
 
+  // Details form state
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [amountPence, setAmountPence] = useState(5000)
+  const [amountCents, setAmountCents] = useState(5000)
   const [customAmount, setCustomAmount] = useState('')
   const [message, setMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+
+  // Payment state
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [loadingPayment, setLoadingPayment] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
   const supabase = createClient()
+
+  useEffect(() => {
+    // Handle Stripe redirect return (3DS flows)
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('success') === '1') {
+      setDone(true)
+    }
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -48,7 +135,6 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
       if (!ev) return
       setEventId(ev.id)
 
-      // Use palette from content JSONB first, fall back to columns
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedPalette = (ev.content as any)?._palette
       setPrimaryColor(savedPalette?.primary ?? ev.primary_color ?? '#2C2B26')
@@ -63,7 +149,6 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
       ])
       setFunds(poolData ?? [])
 
-      // Build progress map
       const prog: FundProgress = {}
       for (const c of contribData ?? []) {
         if (c.pool_id) prog[c.pool_id] = (prog[c.pool_id] ?? 0) + c.amount
@@ -73,42 +158,46 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
     load()
   }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function pickFund(fund: RegistryPool | null) {
-    setSelectedFund(fund)
-    setStep('contribute')
-  }
-
-  const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amountPence
+  const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amountCents
   const fee = calculateFee(effectiveAmount)
   const theyReceive = effectiveAmount - fee
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleContinueToPayment(e: React.FormEvent) {
     e.preventDefault()
     if (effectiveAmount < 100) { setError('Minimum contribution is $1.'); return }
-    setSubmitting(true)
+    if (!name.trim()) { setError('Please enter your name.'); return }
+    setLoadingPayment(true)
     setError('')
 
-    const res = await fetch('/api/contribute', {
+    const res = await fetch('/api/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         eventId,
         poolId: selectedFund?.id ?? null,
         contributorName: name,
-        contributorEmail: email,
-        message,
-        amountPence: effectiveAmount,
+        contributorEmail: email || null,
+        message: message || null,
+        amountCents: effectiveAmount,
       }),
     })
 
-    if (res.ok) { setDone(true) } else { setError('Something went wrong. Please try again.') }
-    setSubmitting(false)
+    if (!res.ok) {
+      setError('Something went wrong. Please try again.')
+      setLoadingPayment(false)
+      return
+    }
+
+    const { clientSecret: secret } = await res.json()
+    setClientSecret(secret)
+    setStep('payment')
+    setLoadingPayment(false)
   }
 
   const inputCls = 'w-full px-3.5 py-2.5 text-sm rounded-xl border outline-none transition-colors'
   const inputStyle = { borderColor: `${primaryColor}20`, background: 'white', color: primaryColor }
-  const inputFocusStyle = `focus:border-[${primaryColor}]`
 
+  // ── Success screen ────────────────────────────────────────────────────────
   if (done) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center" style={{ background: bgColor, fontFamily: `'${font}', serif` }}>
@@ -116,7 +205,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
         <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ background: `${primaryColor}15` }}>
           <Heart size={28} style={{ color: primaryColor }} />
         </div>
-        <h1 className="text-2xl font-semibold mb-2" style={{ color: primaryColor }}>Thank you, {name}!</h1>
+        <h1 className="text-2xl font-semibold mb-2" style={{ color: primaryColor }}>Thank you{name ? `, ${name}` : ''}!</h1>
         <p className="text-sm mb-2 opacity-60" style={{ color: primaryColor }}>
           Your gift of {formatCurrency(effectiveAmount)} has been received.
         </p>
@@ -134,6 +223,17 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
     )
   }
 
+  const stripeAppearance = {
+    theme: 'stripe' as const,
+    variables: {
+      colorPrimary: primaryColor,
+      colorBackground: '#FFFFFF',
+      fontFamily: font,
+      borderRadius: '12px',
+      spacingUnit: '5px',
+    },
+  }
+
   return (
     <div className="min-h-screen" style={{ background: bgColor, fontFamily: `'${font}', serif`, color: primaryColor }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600&display=swap');`}</style>
@@ -143,9 +243,12 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
         className="px-6 py-3.5 border-b flex items-center gap-3 sticky top-0 z-10"
         style={{ borderColor: `${primaryColor}12`, background: bgColor }}
       >
-        {step === 'contribute' ? (
+        {step !== 'pick' ? (
           <button
-            onClick={() => { setStep('pick'); setSelectedFund(undefined) }}
+            onClick={() => {
+              if (step === 'payment') { setStep('details'); setClientSecret(null) }
+              else { setStep('pick'); setSelectedFund(undefined) }
+            }}
             className="flex items-center gap-1.5 text-sm opacity-50 hover:opacity-80 transition-opacity"
             style={{ color: primaryColor }}
           >
@@ -161,13 +264,11 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
           </Link>
         )}
         <span className="text-sm font-medium opacity-70" style={{ color: primaryColor }}>
-          {step === 'contribute'
-            ? (selectedFund ? selectedFund.title : 'Give a gift')
-            : 'Registry'}
+          {step === 'payment' ? 'Payment' : step === 'details' ? (selectedFund ? selectedFund.title : 'Give a gift') : 'Registry'}
         </span>
       </nav>
 
-      {/* Step 1 — Fund picker */}
+      {/* ── Step 1: Pick fund ─────────────────────────────────────────────── */}
       {step === 'pick' && (
         <div className="max-w-lg mx-auto px-6 pt-10 pb-16">
           <h1 className="text-2xl font-semibold mb-1" style={{ color: primaryColor }}>Choose a fund</h1>
@@ -176,16 +277,13 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
           </p>
 
           <div className="flex flex-col gap-3">
-            {/* Give to anything */}
             <button
-              onClick={() => pickFund(null)}
+              onClick={() => { setSelectedFund(null); setStep('details') }}
               className="w-full text-left rounded-2xl border px-5 py-4 transition-all hover:shadow-sm"
               style={{ background: 'white', borderColor: `${primaryColor}20` }}
             >
               <p className="font-medium mb-0.5" style={{ color: primaryColor }}>Give to anything</p>
-              <p className="text-sm opacity-55" style={{ color: primaryColor }}>
-                Let them decide where your gift goes.
-              </p>
+              <p className="text-sm opacity-55" style={{ color: primaryColor }}>Let them decide where your gift goes.</p>
             </button>
 
             {funds.map(fund => {
@@ -194,7 +292,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
               return (
                 <button
                   key={fund.id}
-                  onClick={() => pickFund(fund)}
+                  onClick={() => { setSelectedFund(fund); setStep('details') }}
                   className="w-full text-left rounded-2xl border overflow-hidden transition-all hover:shadow-sm"
                   style={{ background: 'white', borderColor: `${primaryColor}20` }}
                 >
@@ -228,8 +326,8 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
         </div>
       )}
 
-      {/* Step 2 — Contribution form */}
-      {step === 'contribute' && (
+      {/* ── Step 2: Details form ──────────────────────────────────────────── */}
+      {step === 'details' && (
         <div className="max-w-md mx-auto px-6 pt-10 pb-16">
           {selectedFund?.image_url && (
             <div className="w-full h-36 rounded-2xl bg-cover bg-center mb-6" style={{ backgroundImage: `url(${selectedFund.image_url})` }} />
@@ -242,8 +340,8 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
             {selectedFund?.description ?? 'Your gift will go wherever it\'s needed most.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* Amount picker */}
+          <form onSubmit={handleContinueToPayment} className="flex flex-col gap-5">
+            {/* Amount */}
             <div>
               <label className="text-sm font-medium block mb-2.5" style={{ color: primaryColor }}>Choose an amount</label>
               <div className="grid grid-cols-4 gap-2 mb-3">
@@ -251,11 +349,11 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
                   <button
                     key={amt}
                     type="button"
-                    onClick={() => { setAmountPence(amt); setCustomAmount('') }}
+                    onClick={() => { setAmountCents(amt); setCustomAmount('') }}
                     className="py-2.5 rounded-xl text-sm font-medium border-2 transition-all"
                     style={{
-                      borderColor: amountPence === amt && !customAmount ? primaryColor : `${primaryColor}20`,
-                      background: amountPence === amt && !customAmount ? `${primaryColor}10` : 'white',
+                      borderColor: amountCents === amt && !customAmount ? primaryColor : `${primaryColor}20`,
+                      background: amountCents === amt && !customAmount ? `${primaryColor}10` : 'white',
                       color: primaryColor,
                     }}
                   >
@@ -264,11 +362,11 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
                 ))}
               </div>
               <input
-                className={`${inputCls} ${inputFocusStyle}`}
+                className={inputCls}
                 style={inputStyle}
                 placeholder="Or enter your own amount ($)"
                 value={customAmount}
-                onChange={e => { setCustomAmount(e.target.value); setAmountPence(0) }}
+                onChange={e => { setCustomAmount(e.target.value); setAmountCents(0) }}
                 type="number"
                 min="1"
                 step="0.01"
@@ -283,7 +381,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
                   <span className="font-medium" style={{ color: primaryColor }}>{formatCurrency(effectiveAmount)}</span>
                 </div>
                 <div className="flex justify-between mb-2">
-                  <span className="opacity-55" style={{ color: primaryColor }}>Joyabl fee (4.98%)</span>
+                  <span className="opacity-55" style={{ color: primaryColor }}>Joyabl fee (4.98% incl. GST)</span>
                   <span className="opacity-40" style={{ color: primaryColor }}>−{formatCurrency(fee)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t" style={{ borderColor: `${primaryColor}15` }}>
@@ -309,7 +407,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
             {/* Email */}
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: primaryColor }}>
-                Email <span className="opacity-40 font-normal">(optional)</span>
+                Email <span className="opacity-40 font-normal">(for receipt)</span>
               </label>
               <input
                 className={inputCls}
@@ -337,26 +435,51 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
 
             {error && <p className="text-sm" style={{ color: '#EF4444' }}>{error}</p>}
 
-            {/* Demo banner */}
-            <div className="rounded-xl px-4 py-3 text-xs" style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}12` }}>
-              <p className="font-medium mb-0.5 opacity-70" style={{ color: primaryColor }}>Demo mode</p>
-              <p className="opacity-50" style={{ color: primaryColor }}>
-                Payments are not yet live. Your contribution will be recorded but no money will be taken.
-              </p>
-            </div>
-
             <button
               type="submit"
-              disabled={submitting || effectiveAmount < 100}
+              disabled={loadingPayment || effectiveAmount < 100}
               className="w-full py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
               style={{ background: primaryColor, color: bgColor }}
             >
-              {submitting
-                ? <><Loader2 size={14} className="animate-spin" /> Processing…</>
-                : <><Check size={14} /> Give {effectiveAmount >= 100 ? formatCurrency(effectiveAmount) : ''}</>
+              {loadingPayment
+                ? <><Loader2 size={14} className="animate-spin" /> Preparing payment…</>
+                : <>Continue to payment →</>
               }
             </button>
           </form>
+        </div>
+      )}
+
+      {/* ── Step 3: Stripe Payment ────────────────────────────────────────── */}
+      {step === 'payment' && clientSecret && (
+        <div className="max-w-md mx-auto px-6 pt-10 pb-16">
+          <h1 className="text-2xl font-semibold mb-1" style={{ color: primaryColor }}>Payment</h1>
+          <p className="text-sm mb-8 opacity-55" style={{ color: primaryColor }}>
+            {name ? `Hi ${name} —` : ''} your contribution of {formatCurrency(effectiveAmount)} is ready to be sent.
+          </p>
+
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret,
+              appearance: stripeAppearance,
+            }}
+          >
+            <PaymentForm
+              amountCents={effectiveAmount}
+              name={name}
+              primaryColor={primaryColor}
+              bgColor={bgColor}
+              onSuccess={() => setDone(true)}
+              onError={(msg) => { setError(msg); setStep('details') }}
+            />
+          </Elements>
+
+          {error && <p className="mt-4 text-sm" style={{ color: '#EF4444' }}>{error}</p>}
+
+          <p className="mt-6 text-center text-xs opacity-30" style={{ color: primaryColor }}>
+            Secured by Stripe · Payments processed in AUD
+          </p>
         </div>
       )}
     </div>

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendInvitation } from '@/lib/resend'
+import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  // 5 bulk sends per IP per minute
+  if (!checkRateLimit(`send-inv:${getIp(req)}`, 5, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+  }
   const { eventId, guestIds } = await req.json()
 
   const supabase = await createClient()

@@ -1,21 +1,30 @@
-// Stripe integration — ready to activate when payments go live
-// To enable: add STRIPE_SECRET_KEY to env and uncomment below
+import Stripe from 'stripe'
 
-// import Stripe from 'stripe'
-// export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-//   apiVersion: '2024-11-20.acacia',
-// })
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2026-01-28.clover',
+})
 
-export const JOYABL_FEE_RATE = 0.0498 // 4.98%
-/** @deprecated use JOYABL_FEE_RATE */
-export const FOND_FEE_RATE = JOYABL_FEE_RATE
+export const JOYABL_FEE_RATE = 0.0498 // 4.98% (GST-inclusive for AU)
 
-export function calculateFee(amountPence: number): number {
-  return Math.round(amountPence * JOYABL_FEE_RATE)
+/**
+ * Calculate Joyabl's platform fee on a contribution.
+ * The fee is GST-inclusive (standard AU consumer pricing).
+ */
+export function calculateFee(amountCents: number): number {
+  return Math.round(amountCents * JOYABL_FEE_RATE)
 }
 
-// Placeholder — replace with real Stripe PaymentIntent creation
-export async function createMockPaymentIntent(amountPence: number) {
-  console.log(`[Stripe mock] Would create PaymentIntent for $${(amountPence / 100).toFixed(2)}`)
-  return { id: `mock_pi_${Date.now()}`, status: 'succeeded' }
+/**
+ * GST component of the fee (for Joyabl's tax accounting).
+ * Australian GST: working back from a GST-inclusive price, GST = price / 11.
+ */
+export function calculateGst(feeCents: number): number {
+  return Math.round(feeCents / 11)
+}
+
+/**
+ * Net amount the event organiser receives after the platform fee.
+ */
+export function calculateNetAmount(amountCents: number): number {
+  return amountCents - calculateFee(amountCents)
 }

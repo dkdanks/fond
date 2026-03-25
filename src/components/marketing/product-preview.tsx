@@ -27,7 +27,7 @@ export function ProductPreview() {
           className="text-xs px-3 py-1 rounded-md mx-auto"
           style={{ background: 'white', color: '#9CA3AF', border: '1px solid #E5E5E4' }}
         >
-          fond.app/e/sarah-and-james
+          joyabl.com/e/sarah-and-james
         </div>
       </div>
 
