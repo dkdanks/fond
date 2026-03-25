@@ -116,6 +116,8 @@ export interface RegistryPool {
   description: string | null
   image_url: string | null
   target_amount: number | null
+  group_name: string | null
+  display_order: number | null
   created_at: string
 }
 
