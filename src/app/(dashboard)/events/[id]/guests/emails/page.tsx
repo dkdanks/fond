@@ -71,7 +71,7 @@ export default function GuestsEmailsPage() {
   const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }
 
   return (
-    <div className="px-8 py-8 max-w-3xl">
+    <div className="px-8 py-8 max-w-3xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>
           Emails

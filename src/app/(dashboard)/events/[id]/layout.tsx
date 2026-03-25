@@ -25,7 +25,7 @@ export default async function EventLayout({
   if (!event) notFound()
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#F5F0E8' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: '#FAFAF7' }}>
       <AppSidebar eventId={id} userEmail={user.email} />
       <main className="flex-1 overflow-y-auto">
         {children}

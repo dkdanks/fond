@@ -137,11 +137,16 @@ export interface Guest {
   id: string
   event_id: string
   name: string
+  first_name: string | null
+  last_name: string | null
   email: string
+  phone: string | null
   rsvp_status: RsvpStatus
   meal_preference: string | null
   plus_one: boolean
   message: string | null
+  note: string | null
+  tags: string[]
   invitation_sent_at: string | null
   responded_at: string | null
   created_at: string

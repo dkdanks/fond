@@ -137,7 +137,7 @@ function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d
                   cursor: isPast(day) ? 'default' : 'pointer',
                   fontWeight: isSelected(day) ? 600 : 400,
                 }}
-                onMouseEnter={e => { if (!isSelected(day) && !isPast(day)) (e.target as HTMLElement).style.background = '#F5F0E8' }}
+                onMouseEnter={e => { if (!isSelected(day) && !isPast(day)) (e.target as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
                 onMouseLeave={e => { if (!isSelected(day)) (e.target as HTMLElement).style.background = 'transparent' }}
               >
                 {day}
@@ -197,7 +197,6 @@ export default function NewEventPage() {
       try {
         const res = await fetch(`/api/check-slug?slug=${encodeURIComponent(value)}`)
         const data = await res.json()
-        setSlug(data.slug) // normalized
         setSlugStatus(data.available ? 'available' : 'taken')
       } catch {
         setSlugStatus('idle')
@@ -341,12 +340,12 @@ export default function NewEventPage() {
                       className="text-left rounded-2xl p-5 border-2 transition-all"
                       style={{
                         borderColor: selected ? '#2C2B26' : '#E8E3D9',
-                        background: selected ? '#F5F0E8' : 'white',
+                        background: selected ? 'rgba(44,43,38,0.06)' : 'white',
                       }}
                     >
                       <div
                         className="mb-3 w-9 h-9 rounded-xl flex items-center justify-center"
-                        style={{ background: selected ? '#2C2B26' : '#F5F0E8' }}
+                        style={{ background: selected ? '#2C2B26' : '#F0EDE8' }}
                       >
                         <Icon size={16} style={{ color: selected ? 'white' : '#8B8670' }} />
                       </div>
@@ -431,9 +430,10 @@ export default function NewEventPage() {
 
               {/* Live preview */}
               {title && (
-                <div className="mb-10 px-4 py-3 rounded-xl" style={{ background: '#F5F0E8' }}>
+                <div className="mb-10 px-4 py-3 rounded-xl" style={{ background: '#F0EDE8' }}>
                   <p className="text-xs mb-0.5" style={{ color: '#B5A98A' }}>Your page will be called</p>
                   <p className="font-semibold" style={{ color: '#2C2B26' }}>{title}</p>
+                  <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>You can change this any time from the website builder.</p>
                 </div>
               )}
               {!title && <div className="mb-10" />}
@@ -567,7 +567,7 @@ export default function NewEventPage() {
                       className="px-3 py-1.5 rounded-lg text-xs border transition-all"
                       style={{
                         borderColor: slug === s ? '#2C2B26' : '#E8E3D9',
-                        background: slug === s ? '#F5F0E8' : 'white',
+                        background: slug === s ? 'rgba(44,43,38,0.06)' : 'white',
                         color: '#2C2B26',
                       }}
                     >

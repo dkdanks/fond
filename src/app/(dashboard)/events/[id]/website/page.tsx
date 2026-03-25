@@ -17,7 +17,6 @@ import { formatDate } from '@/lib/utils'
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const PALETTES = [
-  { name: 'Classic', primary: '#2C2B26', bg: '#F5F0E8' },
   { name: 'Forest',  primary: '#2D4A3E', bg: '#EBF2EC' },
   { name: 'Blush',   primary: '#7B3654', bg: '#FDF0F5' },
   { name: 'Navy',    primary: '#1B3A5C', bg: '#EFF4FA' },
@@ -25,11 +24,22 @@ const PALETTES = [
   { name: 'Earth',   primary: '#4A3728', bg: '#F5EDE0' },
   { name: 'Sage',    primary: '#3D5A48', bg: '#EFF5F0' },
   { name: 'Noir',    primary: '#1A1A1A', bg: '#FAFAFA' },
+  { name: 'Custom',  primary: '#2C2B26', bg: '#FAFAF7' },
 ]
 
 const FONTS = [
-  'Playfair Display', 'Cormorant Garamond', 'Lora',
-  'Plus Jakarta Sans', 'DM Sans', 'Inter', 'Raleway', 'Montserrat',
+  { name: 'Playfair', value: 'Playfair Display', class: 'font-playfair' },
+  { name: 'Cormorant', value: 'Cormorant Garamond', class: 'font-cormorant' },
+  { name: 'Lora', value: 'Lora', class: 'font-lora' },
+  { name: 'EB Garamond', value: 'EB Garamond', class: 'font-garamond' },
+  { name: 'Libre Baskerville', value: 'Libre Baskerville', class: 'font-baskerville' },
+  { name: 'Crimson Text', value: 'Crimson Text', class: 'font-crimson' },
+  { name: 'Josefin Sans', value: 'Josefin Sans', class: 'font-josefin' },
+  { name: 'Montserrat', value: 'Montserrat', class: 'font-montserrat' },
+  { name: 'Raleway', value: 'Raleway', class: 'font-raleway' },
+  { name: 'DM Serif Display', value: 'DM Serif Display', class: 'font-dm-serif' },
+  { name: 'Italiana', value: 'Italiana', class: 'font-italiana' },
+  { name: 'Great Vibes', value: 'Great Vibes', class: 'font-great-vibes' },
 ]
 
 type SectionKey = 'welcome' | 'story' | 'schedule' | 'wedding_party' | 'attire' | 'travel' | 'registry' | 'faq'
@@ -192,6 +202,44 @@ interface PreviewProps {
   onSectionClick: (s: string) => void
 }
 
+function PhotoGrid({ images }: { images: string[] }) {
+  const imgs = images.filter(Boolean)
+  if (imgs.length === 0) return null
+  if (imgs.length === 1) {
+    return (
+      <div className="mt-10">
+        <div className="aspect-[16/9] rounded-2xl bg-cover bg-center w-full" style={{ backgroundImage: `url(${imgs[0]})` }} />
+      </div>
+    )
+  }
+  if (imgs.length === 2) {
+    return (
+      <div className="mt-10 grid grid-cols-2 gap-3">
+        {imgs.map((img, i) => (
+          <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+        ))}
+      </div>
+    )
+  }
+  if (imgs.length === 3) {
+    return (
+      <div className="mt-10 grid grid-cols-2 gap-3">
+        <div className="row-span-2 aspect-[3/4] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[0]})` }} />
+        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[1]})` }} />
+        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[2]})` }} />
+      </div>
+    )
+  }
+  // 4+: 2x2 grid
+  return (
+    <div className="mt-10 grid grid-cols-2 gap-3">
+      {imgs.slice(0, 4).map((img, i) => (
+        <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+      ))}
+    </div>
+  )
+}
+
 function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSections, sectionOrder, onSectionClick }: PreviewProps) {
   const c = content
   const hasStory = c.our_story?.introduction || c.our_story?.story
@@ -280,20 +328,7 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
                 {c.our_story?.story && (
                   <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>
                 )}
-                {c.our_story?.images && c.our_story.images.filter(Boolean).length > 0 && (
-                  <div
-                    className="mt-10 grid gap-3"
-                    style={{ gridTemplateColumns: `repeat(${Math.min(c.our_story.images.filter(Boolean).length, 2)}, 1fr)` }}
-                  >
-                    {c.our_story.images.filter(Boolean).map((img, i) => (
-                      <div
-                        key={i}
-                        className="aspect-[4/3] rounded-2xl bg-cover bg-center"
-                        style={{ backgroundImage: `url(${img})` }}
-                      />
-                    ))}
-                  </div>
-                )}
+                <PhotoGrid images={c.our_story?.images ?? []} />
               </div>
             </section>
           )
@@ -361,6 +396,7 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
                     />
                     <p className="font-medium text-sm">{m.name || ROLE_LABELS[m.role]}</p>
                     <p className="text-xs opacity-40 mt-0.5">{ROLE_LABELS[m.role]}</p>
+                    {m.story && <p className="text-xs opacity-50 mt-2 leading-relaxed px-1">{m.story}</p>}
                   </div>
                 ))}
               </div>
@@ -545,7 +581,10 @@ export default function WebsiteEditorPage() {
   const [content, setContent] = useState<EventContent>({})
   const [primaryColor, setPrimaryColor] = useState('#2C2B26')
   const [bgColor, setBgColor] = useState('#F5F0E8')
-  const [font, setFont] = useState('Inter')
+  const [paletteKey, setPaletteKey] = useState<string>('Forest')
+  const [customPrimary, setCustomPrimary] = useState('#2C2B26')
+  const [customBg, setCustomBg] = useState('#FAFAF7')
+  const [font, setFont] = useState('Playfair Display')
   const [tab, setTab] = useState<'design' | 'content'>('design')
   const [activeSection, setActiveSection] = useState<string | null>('welcome')
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop')
@@ -574,12 +613,23 @@ export default function WebsiteEditorPage() {
       setContent((data.content as EventContent) ?? {})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedPalette = (data.content as any)?._palette
-      setPrimaryColor(savedPalette?.primary ?? data.primary_color ?? '#2C2B26')
-      setBgColor(savedPalette?.bg ?? data.accent_color ?? '#F5F0E8')
+      const restoredPrimary = savedPalette?.primary ?? data.primary_color ?? '#2C2B26'
+      const restoredBg = savedPalette?.bg ?? data.accent_color ?? '#F5F0E8'
+      setPrimaryColor(restoredPrimary)
+      setBgColor(restoredBg)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedPaletteKey = (data.content as any)?._paletteKey
+      if (savedPaletteKey) {
+        setPaletteKey(savedPaletteKey)
+        if (savedPaletteKey === 'Custom') {
+          setCustomPrimary(restoredPrimary)
+          setCustomBg(restoredBg)
+        }
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedFont = (data.content as any)?._font
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setFont(savedFont ?? (data as any).font_family ?? 'Inter')
+      setFont(savedFont ?? (data as any).font_family ?? 'Playfair Display')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pw = (data as any).access_password ?? ''
       setSharePassword(pw)
@@ -617,11 +667,12 @@ export default function WebsiteEditorPage() {
     })
   }
 
-  function setPalette(primary: string, bg: string) {
+  function setPalette(primary: string, bg: string, key: string) {
     setPrimaryColor(primary)
     setBgColor(bg)
+    setPaletteKey(key)
     setContent(prev => {
-      const next = { ...prev, _palette: { primary, bg } }
+      const next = { ...prev, _palette: { primary, bg }, _paletteKey: key }
       scheduleSave({ primary_color: primary, accent_color: bg, content: next })
       return next
     })
@@ -968,11 +1019,19 @@ export default function WebsiteEditorPage() {
                 <Label>Colour theme</Label>
                 <div className="grid grid-cols-4 gap-2">
                   {PALETTES.map(p => {
-                    const active = primaryColor === p.primary && bgColor === p.bg
+                    const active = paletteKey === p.name
+                    const swatchPrimary = p.name === 'Custom' ? customPrimary : p.primary
+                    const swatchBg = p.name === 'Custom' ? customBg : p.bg
                     return (
                       <button
                         key={p.name}
-                        onClick={() => setPalette(p.primary, p.bg)}
+                        onClick={() => {
+                          if (p.name === 'Custom') {
+                            setPalette(customPrimary, customBg, 'Custom')
+                          } else {
+                            setPalette(p.primary, p.bg, p.name)
+                          }
+                        }}
                         className="flex flex-col items-center gap-1.5"
                       >
                         <div
@@ -980,8 +1039,8 @@ export default function WebsiteEditorPage() {
                           style={{ borderColor: active ? '#2C2B26' : 'transparent' }}
                         >
                           <div className="h-full flex">
-                            <div className="flex-1" style={{ background: p.primary }} />
-                            <div className="flex-1" style={{ background: p.bg }} />
+                            <div className="flex-1" style={{ background: swatchPrimary }} />
+                            <div className="flex-1" style={{ background: swatchBg }} />
                           </div>
                         </div>
                         <span className="text-xs" style={{ color: active ? '#2C2B26' : '#B5A98A' }}>{p.name}</span>
@@ -989,6 +1048,71 @@ export default function WebsiteEditorPage() {
                     )
                   })}
                 </div>
+
+                {/* Custom color picker — shown only when Custom palette is active */}
+                {paletteKey === 'Custom' && (
+                  <div
+                    className="rounded-2xl border p-4 mt-3"
+                    style={{ background: 'white', borderColor: '#E8E3D9' }}
+                  >
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Text color */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs" style={{ color: '#8B8670' }}>Text color</span>
+                        <input
+                          type="color"
+                          className="w-full h-20 rounded-xl cursor-pointer border-0 p-0"
+                          value={customPrimary}
+                          onChange={e => {
+                            const val = e.target.value
+                            setCustomPrimary(val)
+                            setPalette(val, customBg, 'Custom')
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
+                          style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
+                          value={customPrimary}
+                          onChange={e => setCustomPrimary(e.target.value)}
+                          onBlur={e => {
+                            const val = e.target.value
+                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                              setPalette(val, customBg, 'Custom')
+                            }
+                          }}
+                        />
+                      </div>
+                      {/* Background color */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs" style={{ color: '#8B8670' }}>Page background</span>
+                        <input
+                          type="color"
+                          className="w-full h-20 rounded-xl cursor-pointer border-0 p-0"
+                          value={customBg}
+                          onChange={e => {
+                            const val = e.target.value
+                            setCustomBg(val)
+                            setPalette(customPrimary, val, 'Custom')
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
+                          style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
+                          value={customBg}
+                          onChange={e => setCustomBg(e.target.value)}
+                          onBlur={e => {
+                            const val = e.target.value
+                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                              setPalette(customPrimary, val, 'Custom')
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="border-t" style={{ borderColor: '#F0EDE8' }} />
@@ -997,22 +1121,20 @@ export default function WebsiteEditorPage() {
               <div>
                 <Label>Font</Label>
                 {/* Preload all fonts */}
-                <style>
-                  {FONTS.map(f => `@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@400;600&display=swap');`).join('\n')}
-                </style>
+                <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&family=Lora:wght@400;500;600&family=EB+Garamond:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600&family=Josefin+Sans:wght@300;400;600&family=Montserrat:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&family=DM+Serif+Display&family=Italiana&family=Great+Vibes&display=swap');`}</style>
                 <div className="flex flex-col gap-1.5">
                   {FONTS.map(f => (
                     <button
-                      key={f}
-                      onClick={() => setFontFamily(f)}
+                      key={f.value}
+                      onClick={() => setFontFamily(f.value)}
                       className="px-4 py-3 rounded-xl text-left transition-all text-sm"
                       style={{
-                        fontFamily: `'${f}', serif`,
-                        background: font === f ? '#2C2B26' : '#FAFAF7',
-                        color: font === f ? 'white' : '#2C2B26',
+                        fontFamily: `'${f.value}', serif`,
+                        background: font === f.value ? '#2C2B26' : '#FAFAF7',
+                        color: font === f.value ? 'white' : '#2C2B26',
                       }}
                     >
-                      {f}
+                      {f.name}
                     </button>
                   ))}
                 </div>
@@ -1213,6 +1335,19 @@ export default function WebsiteEditorPage() {
                         {/* WELCOME */}
                         {sectionKey === 'welcome' && (
                           <>
+                            <Field label="Page title">
+                              <input
+                                className={inputCls}
+                                style={inputStyle}
+                                value={event?.title ?? ''}
+                                onChange={e => {
+                                  if (!event) return
+                                  setEvent(prev => prev ? { ...prev, title: e.target.value } : prev)
+                                  scheduleSave({ title: e.target.value })
+                                }}
+                              />
+                              <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>The name shown at the top of your page</p>
+                            </Field>
                             <Field label="Greeting message">
                               <textarea
                                 className={textareaCls}
@@ -1236,9 +1371,16 @@ export default function WebsiteEditorPage() {
                                 type="date"
                                 className={inputCls}
                                 style={inputStyle}
+                                min={new Date().toISOString().split('T')[0]}
+                                max={event?.date ?? undefined}
                                 value={content.welcome?.rsvp_deadline ?? ''}
                                 onChange={e => updateContent({ welcome: { ...content.welcome, rsvp_deadline: e.target.value } })}
                               />
+                              <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>
+                                {event?.date
+                                  ? `Set a date before the event (${new Date(event.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`
+                                  : 'Set a cut-off date for RSVPs'}
+                              </p>
                             </Field>
                             <div className="flex items-center justify-between">
                               <div>
@@ -1338,16 +1480,27 @@ export default function WebsiteEditorPage() {
                                   <div>
                                     <label className="block text-xs mb-1" style={{ color: '#B5A98A' }}>Name</label>
                                     <input
-                                      list={`sched-${idx}`}
                                       className={inputCls}
                                       style={inputStyle}
                                       placeholder="Ceremony"
                                       value={item.title}
                                       onChange={e => updateScheduleItem(idx, 'title', e.target.value)}
                                     />
-                                    <datalist id={`sched-${idx}`}>
-                                      {SCHEDULE_SUGGESTIONS.map(s => <option key={s} value={s} />)}
-                                    </datalist>
+                                    {!item.title && (
+                                      <div className="flex flex-wrap gap-1 mt-1.5">
+                                        {SCHEDULE_SUGGESTIONS.slice(0, 4).map(s => (
+                                          <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() => updateScheduleItem(idx, 'title', s)}
+                                            className="px-2 py-0.5 rounded-md text-xs border transition-colors"
+                                            style={{ borderColor: '#E8E3D9', color: '#8B8670', background: 'white' }}
+                                          >
+                                            {s}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                   <div>
                                     <label className="block text-xs mb-1" style={{ color: '#B5A98A' }}>Time</label>

@@ -8,6 +8,7 @@ import {
   Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { HelpModal } from '@/components/app/help-modal'
 
 interface SidebarProps {
   eventId: string
@@ -45,7 +46,7 @@ const navStructure = (eventId: string): NavItem[] => [
     label: 'Registry',
     sub: [
       { href: `/events/${eventId}/registry`, label: 'Items' },
-      { href: `/events/${eventId}/registry/settings`, label: 'Settings' },
+      { href: `/events/${eventId}/registry/payments`, label: 'Payments' },
     ],
   },
   {
@@ -54,6 +55,7 @@ const navStructure = (eventId: string): NavItem[] => [
     label: 'Guests',
     sub: [
       { href: `/events/${eventId}/guests`, label: 'Guest List' },
+      { href: `/events/${eventId}/guests/rsvp`, label: 'RSVP' },
       { href: `/events/${eventId}/guests/emails`, label: 'Emails' },
     ],
   },
@@ -61,6 +63,7 @@ const navStructure = (eventId: string): NavItem[] => [
 
 export function AppSidebar({ eventId, userEmail }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -195,6 +198,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
         {/* Help */}
         <button
           title={collapsed ? 'Help' : undefined}
+          onClick={() => setHelpOpen(true)}
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-colors w-full text-left"
           style={{ color: '#B5A98A', minHeight: 36 }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
@@ -203,6 +207,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           <HelpCircle size={16} className="shrink-0" />
           {!collapsed && <span>Help</span>}
         </button>
+        <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
         {/* Settings */}
         <Link

@@ -5,6 +5,35 @@ import type { Event, EventContent, WeddingPartyMember } from '@/types'
 import { formatDate } from '@/lib/utils'
 import type { Metadata } from 'next'
 
+// ─── Photo Grid ───────────────────────────────────────────────────────────────
+
+function PhotoGrid({ images }: { images: string[] }) {
+  const imgs = images.filter(Boolean)
+  if (imgs.length === 0) return null
+  if (imgs.length === 1) return (
+    <div className="mt-10">
+      <div className="aspect-[16/9] rounded-2xl bg-cover bg-center w-full" style={{ backgroundImage: `url(${imgs[0]})` }} />
+    </div>
+  )
+  if (imgs.length === 2) return (
+    <div className="mt-10 grid grid-cols-2 gap-3">
+      {imgs.map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />)}
+    </div>
+  )
+  if (imgs.length === 3) return (
+    <div className="mt-10 grid grid-cols-2 gap-3">
+      <div className="row-span-2 aspect-[3/4] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[0]})` }} />
+      <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[1]})` }} />
+      <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[2]})` }} />
+    </div>
+  )
+  return (
+    <div className="mt-10 grid grid-cols-2 gap-3">
+      {imgs.slice(0, 4).map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />)}
+    </div>
+  )
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 type SectionKey = 'welcome' | 'story' | 'schedule' | 'wedding_party' | 'attire' | 'travel' | 'registry' | 'faq'
@@ -53,7 +82,6 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
     .from('events')
     .select('*')
     .eq('slug', slug)
-    .eq('status', 'published')
     .single()
 
   if (!eventData) notFound()
@@ -110,20 +138,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
               {c.our_story?.story && (
                 <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>
               )}
-              {c.our_story?.images && c.our_story.images.filter(Boolean).length > 0 && (
-                <div
-                  className="mt-10 grid gap-3"
-                  style={{ gridTemplateColumns: `repeat(${Math.min(c.our_story.images.filter(Boolean).length, 2)}, 1fr)` }}
-                >
-                  {c.our_story.images.filter(Boolean).map((img, i) => (
-                    <div
-                      key={i}
-                      className="aspect-[4/3] rounded-2xl bg-cover bg-center"
-                      style={{ backgroundImage: `url(${img})` }}
-                    />
-                  ))}
-                </div>
-              )}
+              <PhotoGrid images={c.our_story?.images ?? []} />
             </div>
           </section>
         )
@@ -171,6 +186,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
                   />
                   <p className="font-medium text-sm">{m.name || ROLE_LABELS[m.role]}</p>
                   <p className="text-xs opacity-40 mt-0.5">{ROLE_LABELS[m.role]}</p>
+                  {m.story && <p className="text-xs opacity-50 mt-2 leading-relaxed px-1">{m.story}</p>}
                 </div>
               ))}
             </div>
@@ -301,7 +317,17 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
             <p className="text-sm mb-8 opacity-60">
               {event.date && formatDate(event.date)}
               {event.date && event.location && ' · '}
-              {event.location}
+              {event.location && (
+                <a
+                  href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="no-underline hover:underline"
+                  style={{ color: 'inherit' }}
+                >
+                  {event.location}
+                </a>
+              )}
             </p>
           )}
           {c.welcome?.greeting && (
