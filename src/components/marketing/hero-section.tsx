@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { EventTypeCard } from './event-type-card'
 
@@ -14,7 +14,6 @@ const EVENT_TYPES = [
 
 export function HeroSection() {
   const [phase, setPhase] = useState<'intro' | 'main'>('intro')
-  const [videoReady, setVideoReady] = useState(false)
   const main = phase === 'main'
 
   useEffect(() => {
@@ -22,7 +21,6 @@ export function HeroSection() {
     return () => clearTimeout(t)
   }, [])
 
-  // Helper for staggered fade-up transitions
   const fadeUp = (delay: number) => ({
     opacity: main ? 1 : 0,
     transform: main ? 'translateY(0px)' : 'translateY(18px)',
@@ -39,42 +37,31 @@ export function HeroSection() {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        // Fallback shown instantly before poster/video loads
         background: '#2C2B26',
       }}
     >
-      {/* Poster — loads with the HTML, shown until video is ready */}
-      <div
-        style={{
-          position: 'absolute', inset: 0, zIndex: 0,
-          backgroundImage: 'url(/images/hero-poster.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: videoReady ? 0 : 1,
-          transition: 'opacity 1.2s ease',
-        }}
-      />
-
-      {/* Video — fades in once buffered enough to play */}
+      {/*
+        Use native poster= attribute so the browser handles the still→motion
+        transition internally — no JS crossfade, no glitch.
+        poster is extracted from frame 0 of the compressed video so they match exactly.
+      */}
       <video
         autoPlay
         muted
         loop
         playsInline
-        onCanPlay={() => setVideoReady(true)}
+        poster="/images/hero-poster.jpg"
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'cover', zIndex: 1,
-          opacity: videoReady ? 1 : 0,
-          transition: 'opacity 1.2s ease',
         }}
       >
         <source src="/videos/walking_through_field.webm" type="video/webm" />
         <source src="/videos/walking_through_field_compressed.mp4" type="video/mp4" />
       </video>
 
-      {/* Overlay — lighter during intro so text is the star, darker during main for legibility */}
+      {/* Overlay */}
       <div
         style={{
           position: 'absolute', inset: 0, zIndex: 2,
@@ -107,13 +94,14 @@ export function HeroSection() {
       </div>
 
       {/* ── Main: tagline + cards ── */}
+      {/* paddingTop accounts for the fixed nav so tagline never crowds it on mobile */}
       <div
         style={{
           position: 'relative', zIndex: 10,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center',
           width: '100%',
-          padding: '24px',
+          padding: '80px 24px 24px',
           pointerEvents: main ? 'auto' : 'none',
         }}
       >
@@ -146,10 +134,14 @@ export function HeroSection() {
             What are you celebrating?
           </p>
 
-          {/* Cards — staggered */}
+          {/* Cards — staggered. Mobile: full-width equal cards. Desktop: auto-sized. */}
+          <style>{`
+            .hero-card-wrap { width: 100%; }
+            @media (min-width: 540px) { .hero-card-wrap { width: auto; } }
+          `}</style>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
             {EVENT_TYPES.map((event, i) => (
-              <div key={event.href} style={fadeUp(0.28 + i * 0.08)}>
+              <div key={event.href} className="hero-card-wrap" style={fadeUp(0.28 + i * 0.08)}>
                 <EventTypeCard {...event} dark />
               </div>
             ))}
@@ -157,7 +149,7 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Scroll indicator — outer div holds the X-centering, inner handles fade + bob */}
+      {/* Scroll indicator */}
       <div
         style={{
           position: 'absolute', bottom: 28,

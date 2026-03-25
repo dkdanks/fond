@@ -27,6 +27,7 @@ export function EventTypeCard({ label, description, href, accent, dark }: EventT
         gap: 6,
         padding: '20px 28px',
         borderRadius: 14,
+        width: '100%',
         border: dark
           ? `1.5px solid ${hovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)'}`
           : `1.5px solid ${hovered ? 'transparent' : '#D4CCBC'}`,
