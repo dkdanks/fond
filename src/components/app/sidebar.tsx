@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   House, LayoutTemplate, Gift, Users,
-  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight
+  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface SidebarProps {
   eventId: string
@@ -61,6 +62,14 @@ const navStructure = (eventId: string): NavItem[] => [
 export function AppSidebar({ eventId, userEmail }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <aside
@@ -207,6 +216,19 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           <Settings size={16} className="shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
+
+        {/* Sign out */}
+        <button
+          onClick={handleSignOut}
+          title={collapsed ? 'Sign out' : undefined}
+          className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-colors w-full text-left"
+          style={{ color: '#B5A98A', minHeight: 36 }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+        >
+          <LogOut size={16} className="shrink-0" />
+          {!collapsed && <span>Sign out</span>}
+        </button>
       </div>
     </aside>
   )
