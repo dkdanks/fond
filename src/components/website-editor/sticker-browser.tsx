@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Search } from 'lucide-react'
 import { STICKER_CATEGORIES, STICKERS, stickersByCategory, type StickerDef } from '@/lib/stickers'
+import { StickerImage } from './sticker-image'
 
 interface Props {
   onAdd: (sticker: StickerDef) => void
@@ -177,22 +178,11 @@ function StickerTile({
         boxShadow: hovered ? '0 4px 16px rgba(44,43,38,0.1)' : 'none',
       }}
     >
-      {/* SVG preview — rendered at natural color in browser */}
-      <div
-        className="w-14 h-14 flex items-center justify-center"
-        style={{ color: '#2C2B26' }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={sticker.src}
-          alt={sticker.name}
-          className="w-full h-full object-contain"
-          style={{
-            filter: 'invert(15%) sepia(10%) saturate(400%) hue-rotate(10deg)',
-            transition: 'filter 150ms ease',
-          }}
-        />
-      </div>
+      <StickerImage
+        src={sticker.src}
+        color="#2C2B26"
+        className="w-14 h-14"
+      />
       <span className="text-xs leading-tight text-center" style={{ color: '#8B8670' }}>
         {sticker.name}
       </span>

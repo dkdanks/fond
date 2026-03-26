@@ -12,6 +12,7 @@ import type {
   Event, EventContent, EventType, ScheduleItem, FaqItem,
   WeddingPartyMember, TravelCard, PlacedSticker
 } from '@/types'
+import { resolveFontFamily } from '@/lib/font-family'
 import { formatDate } from '@/lib/utils'
 import { THEMES, getThemeById, type Theme } from '@/lib/themes'
 import { StickerBrowser } from '@/components/website-editor/sticker-browser'
@@ -312,9 +313,7 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
   const isHidden = (s: string) => hiddenSections.includes(s)
 
   return (
-    <div style={{ fontFamily: `'${bodyFont}', serif`, background: bgColor, color: primaryColor }}>
-      {/* Inject Google Fonts */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(displayFont)}:wght@300;400;500;600;700&family=${encodeURIComponent(bodyFont)}:wght@300;400;500;600;700&display=swap');`}</style>
+    <div style={{ fontFamily: resolveFontFamily(bodyFont), background: bgColor, color: primaryColor }}>
 
       {/* Hero */}
       {!isHidden('welcome') && (() => {
@@ -361,10 +360,10 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
             >
               {hoverOverlay}
               <div className="relative px-8 py-20 flex flex-col items-center gap-6 w-full">
-                <h1 className="text-5xl font-semibold" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                <h1 className="text-5xl font-semibold" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine && <div style={{ opacity: 0.8 }}>{metaLine}</div>}
                 {c.welcome?.greeting && (
-                  <p className="text-lg leading-relaxed max-w-xl opacity-90" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                  <p className="text-lg leading-relaxed max-w-xl opacity-90" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                     {c.welcome.greeting}
                   </p>
                 )}
@@ -386,10 +385,10 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
               {hoverOverlay}
               {/* Text side */}
               <div className="flex-1 flex flex-col justify-center px-8 py-16 gap-5">
-                <h1 className="text-4xl font-semibold leading-tight" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                <h1 className="text-4xl font-semibold leading-tight" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine && <div className="text-sm">{metaLine}</div>}
                 {c.welcome?.greeting && (
-                  <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                  <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                     {c.welcome.greeting}
                   </p>
                 )}
@@ -423,7 +422,7 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
                 <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
               </div>
-              <h1 className="text-5xl font-semibold mb-4" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.01em' }}>{event.title}</h1>
+              <h1 className="text-5xl font-semibold mb-4" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.01em' }}>{event.title}</h1>
               {metaLine && <div className="mb-8 text-sm">{metaLine}</div>}
               {/* Decorative bottom border */}
               <div className="mt-2 mb-8 flex items-center justify-center gap-3 opacity-30">
@@ -432,7 +431,7 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                 <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
               </div>
               {c.welcome?.greeting && (
-                <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                   {c.welcome.greeting}
                 </p>
               )}
@@ -450,10 +449,10 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
             title="Click to edit Welcome"
           >
             {hoverOverlay}
-            <h1 className="text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em', fontFamily: `'${displayFont}', serif` }}>{event.title}</h1>
+            <h1 className="text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em', fontFamily: resolveFontFamily(displayFont) }}>{event.title}</h1>
             {metaLine && <div className="mb-8">{metaLine}</div>}
             {c.welcome?.greeting && (
-              <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+              <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                 {c.welcome.greeting}
               </p>
             )}
@@ -1484,9 +1483,6 @@ export default function WebsiteEditorPage() {
                 </CollapseSection>
               </div>
 
-              {/* Fonts — preload */}
-              <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&family=Lora:wght@400;500;600&family=EB+Garamond:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600&family=Josefin+Sans:wght@300;400;600&family=Montserrat:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&family=DM+Serif+Display&family=Italiana&family=Great+Vibes&display=swap');`}</style>
-
               {/* Display / heading font */}
               <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
                 <CollapseSection label="Display font" hint="Names, headings, and highlighted text">
@@ -1497,7 +1493,7 @@ export default function WebsiteEditorPage() {
                         onClick={() => setDisplayFontFamily(f.value)}
                         className="px-4 py-3 rounded-xl text-left transition-all text-sm"
                         style={{
-                          fontFamily: `'${f.value}', serif`,
+                          fontFamily: resolveFontFamily(f.value),
                           background: displayFont === f.value ? '#2C2B26' : '#FAFAF7',
                           color: displayFont === f.value ? 'white' : '#2C2B26',
                         }}
@@ -1519,7 +1515,7 @@ export default function WebsiteEditorPage() {
                         onClick={() => setBodyFontFamily(f.value)}
                         className="px-4 py-3 rounded-xl text-left transition-all text-sm"
                         style={{
-                          fontFamily: `'${f.value}', serif`,
+                          fontFamily: resolveFontFamily(f.value),
                           background: bodyFont === f.value ? '#2C2B26' : '#FAFAF7',
                           color: bodyFont === f.value ? 'white' : '#2C2B26',
                         }}
@@ -2358,7 +2354,6 @@ export default function WebsiteEditorPage() {
           style={{ background: 'rgba(0,0,0,0.5)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowThemePicker(false) }}
         >
-          <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Italiana&family=Josefin+Sans:wght@300;400;600&family=Playfair+Display:wght@400;500;600&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@300;400;600&display=swap');`}</style>
           <div className="rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden" style={{ background: 'white', maxHeight: '85vh' }}>
             {/* Header */}
             <div className="flex items-center justify-between px-8 pt-7 pb-5 shrink-0">

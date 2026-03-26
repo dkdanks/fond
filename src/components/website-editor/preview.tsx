@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { Event, EventContent } from '@/types'
+import { resolveFontFamily } from '@/lib/font-family'
 import { formatDate } from '@/lib/utils'
 import { ROLE_LABELS, type SectionKey } from '@/components/website-editor/config'
 
@@ -82,8 +83,7 @@ export function EventPreview({
   const isHidden = (s: string) => hiddenSections.includes(s)
 
   return (
-    <div style={{ fontFamily: `'${font}', serif`, background: bgColor, color: primaryColor }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600;700&display=swap');`}</style>
+    <div style={{ fontFamily: resolveFontFamily(font), background: bgColor, color: primaryColor }}>
 
       {!isHidden('welcome') && (
         <section

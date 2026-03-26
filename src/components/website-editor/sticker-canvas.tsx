@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { RotateCcw, Trash2, Copy } from 'lucide-react'
 import type { PlacedSticker } from '@/types'
+import { StickerImage } from './sticker-image'
 
 interface Props {
   stickers: PlacedSticker[]
@@ -209,7 +210,6 @@ function StickerItem({
         width: `${sticker.width}%`,
         transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
         opacity: sticker.opacity,
-        color: sticker.color,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         transition: isDragging ? 'none' : 'opacity 150ms ease',
@@ -221,18 +221,11 @@ function StickerItem({
       onClick={e => { e.stopPropagation(); onSelect() }}
       onPointerDown={onStartMove}
     >
-      {/* SVG image */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <StickerImage
         src={sticker.src}
-        alt=""
-        draggable={false}
-        className="w-full h-full object-contain"
-        style={{
-          filter: colorToFilter(sticker.color),
-          display: 'block',
-          pointerEvents: 'none',
-        }}
+        color={sticker.color}
+        className="w-full h-full"
+        style={{ pointerEvents: 'none' }}
       />
 
       {/* Handles — only when selected */}
@@ -398,45 +391,3 @@ function StickerControls({ sticker, primaryColor, onUpdate, onDuplicate, onDelet
   )
 }
 
-// ─── CSS filter colour approximation ─────────────────────────────────────────
-// Converts a hex colour to a CSS filter that approximates it via SVG's
-// currentColor mechanism. For full accuracy we inline SVG; for <img> tags
-// we use a hue-rotate + sepia approximation.
-
-function colorToFilter(hex: string): string {
-  try {
-    const r = parseInt(hex.slice(1, 3), 16) / 255
-    const g = parseInt(hex.slice(3, 5), 16) / 255
-    const b = parseInt(hex.slice(5, 7), 16) / 255
-    const max = Math.max(r, g, b), min = Math.min(r, g, b)
-    const l = (max + min) / 2
-
-    // Near-black: SVG already renders black by default — no filter needed
-    if (l < 0.15) return 'none'
-
-    // Near-white: just invert
-    if (l > 0.9) return 'invert(100%) brightness(200%)'
-
-    const d = max - min
-    const s = max === min ? 0 : l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    let h = 0
-    if (d > 0) {
-      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
-      else if (max === g) h = ((b - r) / d + 2) / 6
-      else h = ((r - g) / d + 4) / 6
-    }
-    const hDeg = h * 360
-
-    // invert(1) → white, sepia(1) → warm sepia (~30° hue),
-    // then hue-rotate to target, saturate to match, brighten to match lightness
-    return [
-      'invert(100%)',
-      'sepia(100%)',
-      `hue-rotate(${Math.round(hDeg - 30)}deg)`,
-      `saturate(${Math.round(s * 800 + 100)}%)`,
-      `brightness(${Math.round(l * 180 + 20)}%)`,
-    ].join(' ')
-  } catch {
-    return 'none'
-  }
-}

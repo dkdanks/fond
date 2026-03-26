@@ -1,12 +1,8 @@
 import type { Metadata } from 'next'
-import { Plus_Jakarta_Sans } from 'next/font/google'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/next'
+import { jakartaSans, siteFontVariables } from '@/lib/site-fonts'
 import './globals.css'
-
-const jakartaSans = Plus_Jakarta_Sans({
-  variable: '--font-jakarta',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-})
 
 export const metadata: Metadata = {
   title: { default: 'Joyabl', template: '%s · Joyabl' },
@@ -21,8 +17,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={jakartaSans.variable}>
+      <body className={`${jakartaSans.variable} ${siteFontVariables}`}>
         {children}
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )

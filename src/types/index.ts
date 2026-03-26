@@ -58,7 +58,7 @@ export interface PlacedSticker {
   width: number     // % of preview width
   rotation: number  // degrees
   opacity: number   // 0–1
-  color: string     // tint color (hex), applied via CSS currentColor
+  color: string     // hex color applied directly to SVG fill
 }
 
 export interface EventContent {

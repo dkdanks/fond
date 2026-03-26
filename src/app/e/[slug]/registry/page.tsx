@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createClient } from '@/lib/supabase/client'
+import { resolveFontFamily } from '@/lib/font-family'
 import { calculateFee, formatCurrency, type RegistryPool } from '@/types'
 import { ArrowLeft, Check, Heart, Loader2 } from 'lucide-react'
 
@@ -239,8 +240,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   // ── Success screen ────────────────────────────────────────────────────────
   if (done) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center" style={{ background: bgColor, fontFamily: `'${font}', serif` }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600&display=swap');`}</style>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center" style={{ background: bgColor, fontFamily: resolveFontFamily(font) }}>
         <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ background: `${primaryColor}15` }}>
           <Heart size={28} style={{ color: primaryColor }} />
         </div>
@@ -267,15 +267,14 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
     variables: {
       colorPrimary: primaryColor,
       colorBackground: '#FFFFFF',
-      fontFamily: font,
+      fontFamily: resolveFontFamily(font, 'sans-serif'),
       borderRadius: '12px',
       spacingUnit: '5px',
     },
   }
 
   return (
-    <div className="min-h-screen" style={{ background: bgColor, fontFamily: `'${font}', serif`, color: primaryColor }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600&display=swap');`}</style>
+    <div className="min-h-screen" style={{ background: bgColor, fontFamily: resolveFontFamily(font), color: primaryColor }}>
 
       {/* Nav */}
       <nav

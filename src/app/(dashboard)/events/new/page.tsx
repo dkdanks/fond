@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EVENT_TYPE_COLORS, type EventType } from '@/types'
+import { resolveFontFamily } from '@/lib/font-family'
 import { THEMES, type Theme } from '@/lib/themes'
 import {
   Heart, Sparkles, Star, House, Gift,
@@ -607,7 +608,6 @@ export default function NewEventPage() {
           {/* STEP 5: Theme */}
           {step === 5 && (
             <div>
-              <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Italiana&family=Josefin+Sans:wght@300;400;600&family=Playfair+Display:wght@400;500;600&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@300;400;600&display=swap');`}</style>
               <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
                 Choose your style.
               </h1>
@@ -632,13 +632,13 @@ export default function NewEventPage() {
                       >
                         <p
                           className="text-base font-semibold leading-tight text-center"
-                          style={{ fontFamily: `'${theme.displayFont}', serif`, color: theme.primary }}
+                          style={{ fontFamily: resolveFontFamily(theme.displayFont), color: theme.primary }}
                         >
                           {title || 'Your Event'}
                         </p>
                         <p
                           className="text-xs mt-1 opacity-50 text-center"
-                          style={{ fontFamily: `'${theme.bodyFont}', serif`, color: theme.primary }}
+                          style={{ fontFamily: resolveFontFamily(theme.bodyFont), color: theme.primary }}
                         >
                           {theme.description}
                         </p>

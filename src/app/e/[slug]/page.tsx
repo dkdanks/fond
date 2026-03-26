@@ -1,41 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Event, EventContent, WeddingPartyMember } from '@/types'
 import { PasswordGate } from '@/components/event/password-gate'
+import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
+import { resolveFontFamily } from '@/lib/font-family'
 import { formatDate } from '@/lib/utils'
+import { getPublicEventBySlug } from '@/lib/public-events'
 import type { Metadata } from 'next'
-
-// ─── Sticker colour filter ────────────────────────────────────────────────────
-
-function stickerColorFilter(hex: string): string {
-  try {
-    const r = parseInt(hex.slice(1, 3), 16) / 255
-    const g = parseInt(hex.slice(3, 5), 16) / 255
-    const b = parseInt(hex.slice(5, 7), 16) / 255
-    const max = Math.max(r, g, b), min = Math.min(r, g, b)
-    const l = (max + min) / 2
-    if (l < 0.15) return 'none'
-    if (l > 0.9) return 'invert(100%) brightness(200%)'
-    const d = max - min
-    const s = max === min ? 0 : l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    let h = 0
-    if (d > 0) {
-      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6
-      else if (max === g) h = ((b - r) / d + 2) / 6
-      else h = ((r - g) / d + 4) / 6
-    }
-    return [
-      'invert(100%)',
-      'sepia(100%)',
-      `hue-rotate(${Math.round(h * 360 - 30)}deg)`,
-      `saturate(${Math.round(s * 800 + 100)}%)`,
-      `brightness(${Math.round(l * 180 + 20)}%)`,
-    ].join(' ')
-  } catch {
-    return 'none'
-  }
-}
 
 // ─── Photo Grid ───────────────────────────────────────────────────────────────
 
@@ -92,12 +63,7 @@ const ROLE_LABELS: Record<WeddingPartyMember['role'], string> = {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
-  const supabase = await createClient()
-  const { data: event } = await supabase
-    .from('events')
-    .select('title, description')
-    .eq('slug', slug)
-    .single()
+  const event = await getPublicEventBySlug(slug)
   return {
     title: event?.title ?? 'Event',
     description: event?.description ?? "You're invited",
@@ -118,13 +84,7 @@ export default async function PublicEventPage({
   const guestParamStr = guestName || guestEmail
     ? '?' + new URLSearchParams({ ...(guestName ? { name: guestName } : {}), ...(guestEmail ? { email: guestEmail } : {}) }).toString()
     : ''
-  const supabase = await createClient()
-
-  const { data: eventData } = await supabase
-    .from('events')
-    .select('*, access_password')
-    .eq('slug', slug)
-    .single()
+  const eventData = await getPublicEventBySlug(slug)
 
   if (!eventData) notFound()
 
@@ -420,12 +380,10 @@ export default async function PublicEventPage({
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const accessPassword = (eventData as any).access_password as string | null | undefined
+  const accessPassword = eventData.access_password
 
   const pageContent = (
-    <div style={{ fontFamily: `'${bodyFont}', serif`, background: bgColor, color: primaryColor, minHeight: '100vh' }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(displayFont)}:wght@300;400;500;600;700&family=${encodeURIComponent(bodyFont)}:wght@300;400;500;600;700&display=swap');`}</style>
+    <div style={{ fontFamily: resolveFontFamily(bodyFont), background: bgColor, color: primaryColor, minHeight: '100vh' }}>
 
       {/* Hero / Welcome */}
       {!hiddenSections.has('welcome') && (() => {
@@ -475,10 +433,10 @@ export default async function PublicEventPage({
               }}
             >
               <div className="px-6 py-20 flex flex-col items-center gap-6 w-full max-w-3xl mx-auto">
-                <h1 className="text-4xl md:text-5xl font-semibold" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                <h1 className="text-4xl md:text-5xl font-semibold" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine && <div style={{ opacity: 0.8 }}>{metaLine}</div>}
                 {c.welcome?.greeting && (
-                  <p className="text-lg leading-relaxed max-w-xl opacity-90" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                  <p className="text-lg leading-relaxed max-w-xl opacity-90" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                     {c.welcome.greeting}
                   </p>
                 )}
@@ -493,10 +451,10 @@ export default async function PublicEventPage({
           return (
             <section className="flex flex-col md:flex-row min-h-[55vh]" style={{ background: bgColor }}>
               <div className="flex-1 flex flex-col justify-center px-6 py-16 md:px-10 gap-6">
-                <h1 className="text-3xl md:text-4xl font-semibold leading-tight" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                <h1 className="text-3xl md:text-4xl font-semibold leading-tight" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine}
                 {c.welcome?.greeting && (
-                  <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                  <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                     {c.welcome.greeting}
                   </p>
                 )}
@@ -522,7 +480,7 @@ export default async function PublicEventPage({
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
                 <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
               </div>
-              <h1 className="text-4xl md:text-5xl font-semibold mb-4" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.01em' }}>{event.title}</h1>
+              <h1 className="text-4xl md:text-5xl font-semibold mb-4" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.01em' }}>{event.title}</h1>
               {metaLine && <div className="mb-4">{metaLine}</div>}
               <div className="my-6 flex items-center justify-center gap-3 opacity-30">
                 <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
@@ -530,7 +488,7 @@ export default async function PublicEventPage({
                 <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
               </div>
               {c.welcome?.greeting && (
-                <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                   {c.welcome.greeting}
                 </p>
               )}
@@ -542,10 +500,10 @@ export default async function PublicEventPage({
         // centered (default)
         return (
           <section className="px-4 py-12 md:px-8 md:py-20 text-center" style={{ background: bgColor }}>
-            <h1 className="text-3xl md:text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em', fontFamily: `'${displayFont}', serif` }}>{event.title}</h1>
+            <h1 className="text-3xl md:text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em', fontFamily: resolveFontFamily(displayFont) }}>{event.title}</h1>
             {metaLine && <div className="mb-8">{metaLine}</div>}
             {c.welcome?.greeting && (
-              <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+              <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: resolveFontFamily(displayFont) }}>
                 {c.welcome.greeting}
               </p>
             )}
@@ -562,30 +520,8 @@ export default async function PublicEventPage({
         <p className="text-xs opacity-25">Powered by Joyabl</p>
       </div>
 
-      {/* Sticker overlay — fixed positioning, non-interactive */}
-      {placedStickers.length > 0 && (
-        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-          {placedStickers.map((s: { id: string; src: string; x: number; y: number; width: number; rotation: number; opacity: number; color: string }) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={s.id}
-              src={s.src}
-              alt=""
-              style={{
-                position: 'absolute',
-                left: `${s.x}%`,
-                top: `${s.y}%`,
-                width: `${s.width}%`,
-                transform: `translate(-50%, -50%) rotate(${s.rotation}deg)`,
-                opacity: s.opacity,
-                filter: stickerColorFilter(s.color),
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Sticker overlay */}
+      <StickerOverlay stickers={placedStickers} />
     </div>
   )
 

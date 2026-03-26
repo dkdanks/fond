@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveFontFamily } from '@/lib/font-family'
 import { type RegistryPool } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -153,8 +154,10 @@ export default function PreviewRegistryPage({ params }: { params: Promise<{ id: 
   })
 
   return (
-    <div className="min-h-screen" style={{ background: bgColor, fontFamily: `'${font}', serif`, color: primaryColor }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600&display=swap');`}</style>
+    <div
+      className="min-h-screen"
+      style={{ background: bgColor, fontFamily: resolveFontFamily(font), color: primaryColor }}
+    >
 
       {/* Preview banner */}
       <div

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { resolveFontFamily } from '@/lib/font-family'
 import type { Event, EventContent, WeddingPartyMember } from '@/types'
 import { formatDate } from '@/lib/utils'
 
@@ -383,8 +384,7 @@ export default async function PreviewEventPage({
         <a href={`/events/${id}/website`} className="underline opacity-70 hover:opacity-100">← Back to editor</a>
       </div>
 
-      <div className="pt-9" style={{ fontFamily: `'${bodyFont}', serif`, background: bgColor, color: primaryColor, minHeight: '100vh' }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(displayFont)}:wght@300;400;500;600;700&family=${encodeURIComponent(bodyFont)}:wght@300;400;500;600;700&display=swap');`}</style>
+      <div className="pt-9" style={{ fontFamily: resolveFontFamily(bodyFont), background: bgColor, color: primaryColor, minHeight: '100vh' }}>
 
         {/* Hero / Welcome */}
         {!hiddenSections.has('welcome') && (() => {

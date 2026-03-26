@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { resolveFontFamily } from '@/lib/font-family'
+import { getPublicEventBySlug } from '@/lib/public-events'
 import RsvpForm, { type RsvpQuestion } from './rsvp-form'
 
 const DEFAULT_QUESTIONS: RsvpQuestion[] = [
@@ -9,16 +10,9 @@ const DEFAULT_QUESTIONS: RsvpQuestion[] = [
 
 export default async function RsvpPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = await createClient()
+  const ev = await getPublicEventBySlug(slug)
 
-  const { data: ev } = await supabase
-    .from('events')
-    .select('id, title, content, primary_color, accent_color')
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .single()
-
-  if (!ev) notFound()
+  if (!ev || ev.status !== 'published') notFound()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const content = (ev.content ?? {}) as Record<string, any>
@@ -33,7 +27,6 @@ export default async function RsvpPage({ params }: { params: Promise<{ slug: str
 
   return (
     <>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600&display=swap');`}</style>
       <Suspense>
         <RsvpForm
           slug={slug}
@@ -42,7 +35,7 @@ export default async function RsvpPage({ params }: { params: Promise<{ slug: str
           questions={questions}
           primaryColor={primaryColor}
           bgColor={bgColor}
-          font={font}
+          font={resolveFontFamily(font, 'sans-serif')}
         />
       </Suspense>
     </>
