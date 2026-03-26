@@ -4,8 +4,19 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EVENT_TYPE_COLORS, type EventType } from '@/types'
-import { ChevronLeft } from 'lucide-react'
-import { DetailsStep, EventTypeStep, NamesStep, SlugStep } from '@/components/new-event/steps'
+import { THEMES, type Theme } from '@/lib/themes'
+import {
+  Heart, Sparkles, Star, House, Gift,
+  ChevronLeft, ChevronRight, Loader2
+} from 'lucide-react'
+
+const EVENT_TYPES: { type: EventType; label: string; description: string; icon: React.ElementType }[] = [
+  { type: 'wedding', label: 'Wedding', description: 'For the big day', icon: Heart },
+  { type: 'baby_shower', label: 'Baby Shower', description: 'Welcome your little one', icon: Sparkles },
+  { type: 'mitzvah', label: 'Bar / Bat Mitzvah', description: 'Mark this milestone', icon: Star },
+  { type: 'housewarming', label: 'Housewarming', description: 'Celebrate a new home', icon: House },
+  { type: 'birthday', label: 'Birthday', description: 'Another trip around the sun', icon: Gift },
+]
 
 function slugify_local(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -46,6 +57,100 @@ function getEventTitle(type: EventType, hostName: string, partnerName: string): 
 }
 
 // Simple calendar component
+function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d: string) => void }) {
+  const today = new Date()
+  const [viewing, setViewing] = useState({
+    year: selected ? new Date(selected).getFullYear() : today.getFullYear(),
+    month: selected ? new Date(selected).getMonth() : today.getMonth(),
+  })
+
+  const firstDay = new Date(viewing.year, viewing.month, 1).getDay()
+  const daysInMonth = new Date(viewing.year, viewing.month + 1, 0).getDate()
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+  function prevMonth() {
+    setViewing(v => v.month === 0 ? { year: v.year - 1, month: 11 } : { ...v, month: v.month - 1 })
+  }
+  function nextMonth() {
+    setViewing(v => v.month === 11 ? { year: v.year + 1, month: 0 } : { ...v, month: v.month + 1 })
+  }
+
+  function selectDay(day: number) {
+    const d = new Date(viewing.year, viewing.month, day)
+    const str = d.toISOString().split('T')[0]
+    onChange(str)
+  }
+
+  const selectedDay = selected ? new Date(selected) : null
+  const isSelected = (day: number) => {
+    if (!selectedDay) return false
+    return selectedDay.getFullYear() === viewing.year &&
+      selectedDay.getMonth() === viewing.month &&
+      selectedDay.getDate() === day
+  }
+
+  const isPast = (day: number) => {
+    const d = new Date(viewing.year, viewing.month, day)
+    d.setHours(0, 0, 0, 0)
+    const t = new Date(); t.setHours(0, 0, 0, 0)
+    return d < t
+  }
+
+  const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+  const cells: (number | null)[] = []
+  for (let i = 0; i < firstDay; i++) cells.push(null)
+  for (let i = 1; i <= daysInMonth; i++) cells.push(i)
+
+  return (
+    <div className="rounded-2xl border p-5 select-none" style={{ background: 'white', borderColor: '#E8E3D9', maxWidth: 320 }}>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={prevMonth} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-black/5">
+          <ChevronLeft size={16} style={{ color: '#8B8670' }} />
+        </button>
+        <span className="text-sm font-semibold" style={{ color: '#2C2B26' }}>
+          {monthNames[viewing.month]} {viewing.year}
+        </span>
+        <button onClick={nextMonth} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-black/5">
+          <ChevronRight size={16} style={{ color: '#8B8670' }} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-0 mb-1">
+        {days.map(d => (
+          <div key={d} className="h-8 flex items-center justify-center text-xs font-medium" style={{ color: '#B5A98A' }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0">
+        {cells.map((day, i) => (
+          <div key={i} className="h-9 flex items-center justify-center">
+            {day !== null && (
+              <button
+                onClick={() => !isPast(day) && selectDay(day)}
+                disabled={isPast(day)}
+                className="w-9 h-9 rounded-lg text-sm flex items-center justify-center transition-all"
+                style={{
+                  background: isSelected(day) ? '#2C2B26' : 'transparent',
+                  color: isSelected(day) ? 'white' : isPast(day) ? '#D4CCBC' : '#2C2B26',
+                  cursor: isPast(day) ? 'default' : 'pointer',
+                  fontWeight: isSelected(day) ? 600 : 400,
+                }}
+                onMouseEnter={e => { if (!isSelected(day) && !isPast(day)) (e.target as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
+                onMouseLeave={e => { if (!isSelected(day)) (e.target as HTMLElement).style.background = 'transparent' }}
+              >
+                {day}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function NewEventPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -69,6 +174,9 @@ export default function NewEventPage() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [creating, setCreating] = useState(false)
+
+  // Step 5
+  const [selectedTheme, setSelectedTheme] = useState<Theme>(THEMES[0])
 
   const title = getEventTitle(type, hostName, partnerName)
 
@@ -121,8 +229,15 @@ export default function NewEventPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const colors = EVENT_TYPE_COLORS[type]
-    const defaultContent = getDefaultContent(type, hostName)
+    const defaultContent = getDefaultContent(type, hostName, partnerName)
+    const contentWithTheme = {
+      ...defaultContent,
+      _theme: selectedTheme.id,
+      _palette: { primary: selectedTheme.primary, bg: selectedTheme.bg },
+      _paletteKey: 'Custom',
+      _displayFont: selectedTheme.displayFont,
+      _bodyFont: selectedTheme.bodyFont,
+    }
 
     const { data: event, error } = await supabase
       .from('events')
@@ -135,10 +250,10 @@ export default function NewEventPage() {
         slug,
         date: dateUndecided ? null : (date || null),
         location: location || null,
-        accent_color: colors.accent,
-        primary_color: colors.primary,
+        accent_color: selectedTheme.bg,
+        primary_color: selectedTheme.primary,
         status: 'draft',
-        content: defaultContent,
+        content: contentWithTheme,
       })
       .select()
       .single()
@@ -168,6 +283,7 @@ export default function NewEventPage() {
   const step1Valid = !!type
   const step2Valid = hostName.trim().length > 0 && (type !== 'wedding' || partnerName.trim().length > 0)
   const step4Valid = slugStatus === 'available'
+  const step5Valid = !!selectedTheme
 
   return (
     <div
@@ -190,7 +306,7 @@ export default function NewEventPage() {
         )}
         {/* Step dots */}
         <div className="flex items-center gap-1.5">
-          {[1, 2, 3, 4].map(s => (
+          {[1, 2, 3, 4, 5].map(s => (
             <div
               key={s}
               className="rounded-full transition-all duration-300"
@@ -216,55 +332,348 @@ export default function NewEventPage() {
       >
         <div className="w-full max-w-lg">
 
+          {/* STEP 1: Event type */}
           {step === 1 && (
-            <EventTypeStep
-              selectedType={type}
-              canContinue={step1Valid}
-              onSelectType={setType}
-              onContinue={() => step1Valid && goNext()}
-            />
+            <div>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                What are you celebrating?
+              </h1>
+              <p className="text-base mb-10" style={{ color: '#8B8670' }}>
+                Choose and we'll set everything up for you.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-10">
+                {EVENT_TYPES.map(({ type: t, label, description, icon: Icon }) => {
+                  const selected = type === t
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setType(t)}
+                      className="text-left rounded-2xl p-5 border-2 transition-all"
+                      style={{
+                        borderColor: selected ? '#2C2B26' : '#E8E3D9',
+                        background: selected ? 'rgba(44,43,38,0.06)' : 'white',
+                      }}
+                    >
+                      <div
+                        className="mb-3 w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background: selected ? '#2C2B26' : '#F0EDE8' }}
+                      >
+                        <Icon size={16} style={{ color: selected ? 'white' : '#8B8670' }} />
+                      </div>
+                      <div className="font-semibold text-sm mb-0.5" style={{ color: '#2C2B26' }}>{label}</div>
+                      <div className="text-xs" style={{ color: '#8B8670' }}>{description}</div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => step1Valid && goNext()}
+                  disabled={!step1Valid}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: step1Valid ? '#2C2B26' : '#E8E3D9', color: step1Valid ? 'white' : '#B5A98A' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
           )}
 
+          {/* STEP 2: Names */}
           {step === 2 && (
-            <NamesStep
-              type={type}
-              hostName={hostName}
-              partnerName={partnerName}
-              title={title}
-              canContinue={step2Valid}
-              onHostNameChange={setHostName}
-              onPartnerNameChange={setPartnerName}
-              onBack={goBack}
-              onContinue={() => step2Valid && goNext()}
-            />
+            <div>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                {type === 'wedding' ? "Let's start with your names." : "What's your name?"}
+              </h1>
+              <p className="text-base mb-10" style={{ color: '#8B8670' }}>
+                {type === 'wedding' ? "We'll use these across your page." : "We'll personalise your page for you."}
+              </p>
+
+              {type === 'wedding' ? (
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-medium mb-2" style={{ color: '#8B8670' }}>First partner</label>
+                    <input
+                      autoFocus
+                      className="w-full px-4 py-3 rounded-xl border text-base outline-none transition-all"
+                      style={{ borderColor: '#E8E3D9', background: 'white', color: '#2C2B26' }}
+                      placeholder="e.g. Sarah"
+                      value={hostName}
+                      onChange={e => setHostName(e.target.value)}
+                      onFocus={e => (e.target.style.borderColor = '#2C2B26')}
+                      onBlur={e => (e.target.style.borderColor = '#E8E3D9')}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-2" style={{ color: '#8B8670' }}>Second partner</label>
+                    <input
+                      className="w-full px-4 py-3 rounded-xl border text-base outline-none transition-all"
+                      style={{ borderColor: '#E8E3D9', background: 'white', color: '#2C2B26' }}
+                      placeholder="e.g. Tom"
+                      value={partnerName}
+                      onChange={e => setPartnerName(e.target.value)}
+                      onFocus={e => (e.target.style.borderColor = '#2C2B26')}
+                      onBlur={e => (e.target.style.borderColor = '#E8E3D9')}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <label className="block text-xs font-medium mb-2" style={{ color: '#8B8670' }}>Your first name</label>
+                  <input
+                    autoFocus
+                    className="w-full px-4 py-3 rounded-xl border text-base outline-none transition-all"
+                    style={{ borderColor: '#E8E3D9', background: 'white', color: '#2C2B26' }}
+                    placeholder={
+                      type === 'birthday' ? 'e.g. Alex' :
+                      type === 'baby_shower' ? 'e.g. Emma' :
+                      type === 'mitzvah' ? 'e.g. Noah' :
+                      'e.g. The Smiths'
+                    }
+                    value={hostName}
+                    onChange={e => setHostName(e.target.value)}
+                    onFocus={e => (e.target.style.borderColor = '#2C2B26')}
+                    onBlur={e => (e.target.style.borderColor = '#E8E3D9')}
+                  />
+                </div>
+              )}
+
+              {/* Live preview */}
+              {title && (
+                <div className="mb-10 px-4 py-3 rounded-xl" style={{ background: '#F0EDE8' }}>
+                  <p className="text-xs mb-0.5" style={{ color: '#B5A98A' }}>Your page will be called</p>
+                  <p className="font-semibold" style={{ color: '#2C2B26' }}>{title}</p>
+                  <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>You can change this any time from the website builder.</p>
+                </div>
+              )}
+              {!title && <div className="mb-10" />}
+
+              <div className="flex justify-between">
+                <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>
+                  Back
+                </button>
+                <button
+                  onClick={() => step2Valid && goNext()}
+                  disabled={!step2Valid}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: step2Valid ? '#2C2B26' : '#E8E3D9', color: step2Valid ? 'white' : '#B5A98A' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
           )}
 
+          {/* STEP 3: Date + location */}
           {step === 3 && (
-            <DetailsStep
-              title={title}
-              date={date}
-              dateUndecided={dateUndecided}
-              location={location}
-              onDateChange={setDate}
-              onToggleDateUndecided={() => setDateUndecided(value => !value)}
-              onLocationChange={setLocation}
-              onBack={goBack}
-              onContinue={goNext}
-            />
+            <div>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                {title ? `${title}.` : 'When is the big day?'}
+              </h1>
+              <p className="text-base mb-8" style={{ color: '#8B8670' }}>
+                When is it? You can always update this later.
+              </p>
+
+              <div className={`mb-6 transition-opacity ${dateUndecided ? 'opacity-40 pointer-events-none' : ''}`}>
+                <CalendarPicker selected={date} onChange={setDate} />
+              </div>
+
+              {/* Haven't decided toggle */}
+              <label className="flex items-center gap-3 mb-8 cursor-pointer select-none">
+                <div
+                  className="w-11 h-6 rounded-full transition-colors relative"
+                  style={{ background: dateUndecided ? '#2C2B26' : '#E8E3D9' }}
+                  onClick={() => setDateUndecided(d => !d)}
+                >
+                  <div
+                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    style={{ transform: dateUndecided ? 'translateX(21px)' : 'translateX(2px)' }}
+                  />
+                </div>
+                <span className="text-sm" style={{ color: '#2C2B26' }}>We haven't decided yet</span>
+              </label>
+
+              {/* Location */}
+              <div className="mb-10">
+                <label className="block text-xs font-medium mb-2" style={{ color: '#8B8670' }}>
+                  Where is it? <span style={{ color: '#B5A98A' }}>(optional)</span>
+                </label>
+                <input
+                  className="w-full px-4 py-3 rounded-xl border text-base outline-none transition-all"
+                  style={{ borderColor: '#E8E3D9', background: 'white', color: '#2C2B26', maxWidth: 320 }}
+                  placeholder="e.g. Sydney, Australia"
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
+                  onFocus={e => (e.target.style.borderColor = '#2C2B26')}
+                  onBlur={e => (e.target.style.borderColor = '#E8E3D9')}
+                />
+              </div>
+
+              <div className="flex justify-between">
+                <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
+                <button
+                  onClick={goNext}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: '#2C2B26', color: 'white' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
           )}
 
+          {/* STEP 4: URL slug */}
           {step === 4 && (
-            <SlugStep
-              slug={slug}
-              slugStatus={slugStatus}
-              suggestions={suggestions}
-              creating={creating}
-              canCreate={step4Valid}
-              onSlugChange={value => setSlug(value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              onSelectSuggestion={setSlug}
-              onBack={goBack}
-              onCreate={handleCreate}
-            />
+            <div>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                Choose your URL.
+              </h1>
+              <p className="text-base mb-10" style={{ color: '#8B8670' }}>
+                This is the link you'll share with your guests.
+              </p>
+
+              {/* URL input */}
+              <div className="mb-6">
+                <div
+                  className="flex items-center rounded-xl border overflow-hidden"
+                  style={{ borderColor: '#E8E3D9', background: 'white' }}
+                >
+                  <span className="pl-4 pr-1 text-sm shrink-0" style={{ color: '#B5A98A' }}>
+                    joyabl.com/
+                  </span>
+                  <input
+                    autoFocus
+                    className="flex-1 py-3 pr-3 text-sm outline-none font-medium"
+                    style={{ color: '#2C2B26', background: 'transparent' }}
+                    placeholder="your-url"
+                    value={slug}
+                    onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  />
+                  <div className="pr-4 pl-2 flex items-center gap-1.5 shrink-0">
+                    {slugStatus === 'checking' && <Loader2 size={14} className="animate-spin" style={{ color: '#B5A98A' }} />}
+                    {slugStatus === 'available' && (
+                      <>
+                        <div className="w-2 h-2 rounded-full" style={{ background: '#4CAF50' }} />
+                        <span className="text-xs" style={{ color: '#4CAF50' }}>Available</span>
+                      </>
+                    )}
+                    {slugStatus === 'taken' && (
+                      <>
+                        <div className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />
+                        <span className="text-xs" style={{ color: '#EF4444' }}>Taken</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Suggestions */}
+              {suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-10">
+                  {suggestions.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSlug(s)}
+                      className="px-3 py-1.5 rounded-lg text-xs border transition-all"
+                      style={{
+                        borderColor: slug === s ? '#2C2B26' : '#E8E3D9',
+                        background: slug === s ? 'rgba(44,43,38,0.06)' : 'white',
+                        color: '#2C2B26',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!suggestions.length && <div className="mb-10" />}
+
+              <div className="flex justify-between">
+                <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
+                <button
+                  onClick={() => step4Valid && goNext()}
+                  disabled={!step4Valid}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: step4Valid ? '#2C2B26' : '#E8E3D9', color: step4Valid ? 'white' : '#B5A98A' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Theme */}
+          {step === 5 && (
+            <div>
+              <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Italiana&family=Josefin+Sans:wght@300;400;600&family=Playfair+Display:wght@400;500;600&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@300;400;600&display=swap');`}</style>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                Choose your style.
+              </h1>
+              <p className="text-base mb-8" style={{ color: '#8B8670' }}>
+                Pick a vibe — you can change everything later.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-10">
+                {THEMES.map(theme => {
+                  const active = selectedTheme.id === theme.id
+                  return (
+                    <button
+                      key={theme.id}
+                      onClick={() => setSelectedTheme(theme)}
+                      className="text-left rounded-2xl overflow-hidden border-2 transition-all"
+                      style={{ borderColor: active ? '#2C2B26' : '#E8E3D9' }}
+                    >
+                      {/* Mini preview */}
+                      <div
+                        className="h-20 flex flex-col items-center justify-center px-3"
+                        style={{ background: theme.bg }}
+                      >
+                        <p
+                          className="text-base font-semibold leading-tight text-center"
+                          style={{ fontFamily: `'${theme.displayFont}', serif`, color: theme.primary }}
+                        >
+                          {title || 'Your Event'}
+                        </p>
+                        <p
+                          className="text-xs mt-1 opacity-50 text-center"
+                          style={{ fontFamily: `'${theme.bodyFont}', serif`, color: theme.primary }}
+                        >
+                          {theme.description}
+                        </p>
+                      </div>
+                      {/* Label */}
+                      <div
+                        className="px-3 py-2 flex items-center justify-between"
+                        style={{ background: active ? '#2C2B26' : '#FAFAF7' }}
+                      >
+                        <span className="text-xs font-semibold" style={{ color: active ? 'white' : '#2C2B26' }}>
+                          {theme.name}
+                        </span>
+                        {active && (
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'white' }}>
+                            <div className="w-2 h-2 rounded-full" style={{ background: '#2C2B26' }} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex justify-between">
+                <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
+                <button
+                  onClick={handleCreate}
+                  disabled={!step5Valid || creating}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+                  style={{ background: step5Valid ? '#2C2B26' : '#E8E3D9', color: step5Valid ? 'white' : '#B5A98A' }}
+                >
+                  {creating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : 'Create your page'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -273,7 +682,7 @@ export default function NewEventPage() {
 }
 
 // Generate sensible default content for the event
-function getDefaultContent(type: EventType, hostName: string) {
+function getDefaultContent(type: EventType, hostName: string, partnerName: string) {
   if (type === 'wedding') {
     return {
       welcome: {

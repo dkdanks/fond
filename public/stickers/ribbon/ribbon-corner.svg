@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M10 10 L90 10 L90 20 Q60 20 50 50 Q40 80 10 90 L10 10Z" fill="currentColor" opacity="0.4"/>
+  <path d="M10 10 L90 10 L90 16 Q58 18 48 50 Q38 82 10 90 L10 84 Q36 76 46 50 Q56 24 90 22 L90 10 Z" fill="currentColor" opacity="0.7"/>
+  <path d="M10 10 L16 10 Q18 42 50 52 Q82 62 90 90 L84 90 Q74 64 50 56 Q24 46 10 16 Z" fill="currentColor" opacity="0.85"/>
+</svg>
