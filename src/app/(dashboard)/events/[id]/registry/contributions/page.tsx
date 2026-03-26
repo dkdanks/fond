@@ -250,7 +250,7 @@ export default function ContributionsPage() {
   ]
 
   return (
-    <div className="px-8 py-8 max-w-5xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>
@@ -262,21 +262,21 @@ export default function ContributionsPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {stats.map(({ label, value }) => (
           <div
             key={label}
-            className="rounded-2xl border p-5"
+            className="rounded-2xl border p-3 md:p-5"
             style={{ background: 'white', borderColor: '#E8E3D9' }}
           >
             <p className="text-xs font-medium mb-2" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* Filters + search */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: '#F0EDE8' }}>
           {([
             { key: 'all', label: 'All' },
@@ -298,7 +298,7 @@ export default function ContributionsPage() {
           ))}
         </div>
 
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#B5A98A' }} />
           <input
             value={search}

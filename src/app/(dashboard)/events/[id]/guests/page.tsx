@@ -505,9 +505,9 @@ export default function GuestsPage() {
   const csvRows = csvText.trim() ? parseCsvGuests(csvText) : []
 
   return (
-    <div className="px-8 py-8 max-w-6xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between gap-3 mb-6 md:mb-8 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>Guests</h1>
           <p className="text-sm" style={{ color: '#8B8670' }}>{guests.length} guest{guests.length !== 1 ? 's' : ''} on your list</p>
@@ -515,7 +515,7 @@ export default function GuestsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
             style={{ borderColor: '#E8E3D9', color: '#8B8670', background: 'white' }}
           >
             <Download size={13} /> Export
@@ -556,7 +556,7 @@ export default function GuestsPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {[
           { label: 'Attending', value: attending },
           { label: 'Declined', value: declined },
@@ -565,11 +565,11 @@ export default function GuestsPage() {
         ].map(({ label, value }) => (
           <div
             key={label}
-            className="rounded-2xl border p-5"
+            className="rounded-2xl border p-3 md:p-5"
             style={{ background: 'white', borderColor: '#E8E3D9' }}
           >
             <p className="text-xs mb-2 font-medium" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-3xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
+            <p className="text-2xl md:text-3xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
           </div>
         ))}
       </div>

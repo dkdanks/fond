@@ -54,14 +54,14 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="px-8 py-10 max-w-4xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-10 max-w-4xl mx-auto">
 
       {/* Hero card */}
       <div
         className="rounded-3xl border overflow-hidden mb-8"
         style={{ background: 'white', borderColor: '#E8E3D9' }}
       >
-        <div className="p-8 flex items-start justify-between gap-8">
+        <div className="p-4 md:p-8 flex flex-col sm:flex-row items-start justify-between gap-4 md:gap-8">
           {/* Left: title, date, badges */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-4">
@@ -118,13 +118,13 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
 
           {/* Right: countdown or prompt */}
           <div
-            className="shrink-0 rounded-2xl px-8 py-6 text-center"
+            className="shrink-0 rounded-2xl px-5 py-4 md:px-8 md:py-6 text-center self-start sm:self-auto"
             style={{ background: '#F0EDE8', minWidth: 140 }}
           >
             {daysToGo !== null ? (
               <>
                 <p
-                  className="text-5xl font-bold mb-1"
+                  className="text-4xl md:text-5xl font-bold mb-1"
                   style={{ color: '#2C2B26', letterSpacing: '-0.04em', lineHeight: 1 }}
                 >
                   {daysToGo}
@@ -148,7 +148,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
 
         {/* URL bar */}
         <div
-          className="px-8 py-4 flex items-center justify-between border-t"
+          className="px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-2 border-t flex-wrap"
           style={{ borderColor: '#F0EDE8', background: '#FAFAF7' }}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -180,7 +180,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
           { label: 'Total raised', value: formatCurrency(totalRaised), sub: `${contributions?.length ?? 0} contributions` },
           { label: 'Guests invited', value: totalGuests ?? 0, sub: 'on the list' },
@@ -189,18 +189,18 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
         ].map(({ label, value, sub }) => (
           <div
             key={label}
-            className="rounded-2xl border p-5"
+            className="rounded-2xl border p-3 md:p-5"
             style={{ background: 'white', borderColor: '#E8E3D9' }}
           >
-            <p className="text-xs mb-2.5" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>{value}</p>
+            <p className="text-xs mb-1.5 md:mb-2.5" style={{ color: '#B5A98A' }}>{label}</p>
+            <p className="text-xl md:text-2xl font-semibold mb-0.5 md:mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>{value}</p>
             <p className="text-xs" style={{ color: '#C8BFA8' }}>{sub}</p>
           </div>
         ))}
       </div>
 
       {/* Feature cards */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {/* Website card */}
         <Link href={`/events/${id}/website`} className="group block">
           <div
@@ -208,7 +208,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
             style={{ background: 'white', borderColor: '#E8E3D9' }}
           >
             {/* Browser mockup */}
-            <div className="h-40 relative overflow-hidden" style={{ background: '#F0EDE8' }}>
+            <div className="h-28 md:h-40 relative overflow-hidden" style={{ background: '#F0EDE8' }}>
               <div className="absolute inset-0 flex flex-col p-4 gap-0">
                 {/* Browser chrome */}
                 <div
@@ -258,7 +258,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
             className="rounded-2xl border overflow-hidden transition-all hover:shadow-md hover:border-[#C8BFA8]"
             style={{ background: 'white', borderColor: '#E8E3D9' }}
           >
-            <div className="h-40 relative overflow-hidden" style={{ background: '#F0EDE8' }}>
+            <div className="h-28 md:h-40 relative overflow-hidden" style={{ background: '#F0EDE8' }}>
               <div className="absolute inset-0 p-5 flex flex-col justify-end gap-2">
                 {/* Progress bars to represent registry items */}
                 {[
@@ -294,7 +294,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { href: `/events/${id}/website`, icon: LayoutTemplate, label: 'Edit website', desc: 'Update content & design' },
           { href: `/events/${id}/guests`, icon: Users, label: 'Manage guests', desc: 'Add guests & track RSVPs' },

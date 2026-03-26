@@ -165,28 +165,28 @@ export default function GuestsEmailsPage() {
   const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }
 
   return (
-    <div className="px-8 py-8 max-w-7xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>Emails</h1>
         <p className="text-sm" style={{ color: '#8B8670' }}>Send invitation emails and follow-ups to your guest list</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4 md:mb-6">
         {[
           { label: 'Total guests', value: guests.length },
           { label: 'Invited', value: guests.filter(g => g.invited_at).length },
           { label: 'Not yet invited', value: guests.filter(g => !g.invited_at).length },
         ].map(({ label, value }) => (
-          <div key={label} className="rounded-2xl border p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+          <div key={label} className="rounded-2xl border p-3 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
             <p className="text-xs mb-2" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
         {/* Left: compose */}
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
@@ -271,7 +271,7 @@ export default function GuestsEmailsPage() {
         </div>
 
         {/* Right: preview */}
-        <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+        <div className="hidden md:block rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
           {/* Mock email chrome */}
           <div className="px-6 py-5 border-b" style={{ borderColor: '#F0EDE8' }}>
             <p className="text-sm font-semibold mb-3" style={{ color: '#2C2B26' }}>Preview</p>

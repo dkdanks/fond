@@ -103,22 +103,22 @@ export default function RegistryPaymentsPage() {
   ]
 
   return (
-    <div className="px-8 py-8 max-w-3xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-3xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>Payments</h1>
         <p className="text-sm" style={{ color: '#8B8670' }}>Manage how contributions are collected and how you receive your funds.</p>
       </div>
 
       {/* Balance cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
         {[
           { label: 'Total raised', value: formatCurrency(totalRaised), sub: `${contributions.length} contribution${contributions.length !== 1 ? 's' : ''}` },
           { label: 'Platform fees', value: formatCurrency(totalFees), sub: '4.98% incl. GST' },
           { label: 'Available to pay out', value: formatCurrency(available), sub: 'After fees', highlight: true },
         ].map(({ label, value, sub, highlight }) => (
-          <div key={label} className="rounded-2xl border p-5" style={{ background: highlight ? '#F5F0E8' : 'white', borderColor: highlight ? '#D4CCBC' : '#E8E3D9' }}>
+          <div key={label} className="rounded-2xl border p-3 md:p-5" style={{ background: highlight ? '#F5F0E8' : 'white', borderColor: highlight ? '#D4CCBC' : '#E8E3D9' }}>
             <p className="text-xs mb-2 font-medium" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-2xl font-semibold mb-0.5" style={{ color: '#2C2B26' }}>{value}</p>
+            <p className="text-xl md:text-2xl font-semibold mb-0.5" style={{ color: '#2C2B26' }}>{value}</p>
             <p className="text-xs" style={{ color: '#8B8670' }}>{sub}</p>
           </div>
         ))}
@@ -140,11 +140,11 @@ export default function RegistryPaymentsPage() {
         </div>
 
         {/* Timeline */}
-        <div className="flex items-start gap-0">
+        <div className="flex flex-col sm:flex-row items-start gap-0">
           {STEPS.map((step, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center text-center relative">
+            <div key={i} className="flex-1 flex flex-col items-center text-center relative w-full sm:w-auto">
               {i < STEPS.length - 1 && (
-                <div className="absolute top-5 left-1/2 w-full h-px" style={{ background: '#E8E3D9' }} />
+                <div className="hidden sm:block absolute top-5 left-1/2 w-full h-px" style={{ background: '#E8E3D9' }} />
               )}
               <div className="w-10 h-10 rounded-full flex items-center justify-center relative z-10 mb-2" style={{ background: '#F5F0E8', border: '2px solid white' }}>
                 <step.icon size={16} style={{ color: '#8B8670' }} />

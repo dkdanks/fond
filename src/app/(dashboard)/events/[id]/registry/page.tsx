@@ -252,7 +252,7 @@ export default function RegistryPage() {
         <div className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ background: 'white', borderColor: '#E8E3D9' }}>
           <div className="flex items-center gap-4">
             <h1 className="text-sm font-semibold" style={{ color: '#2C2B26' }}>Registry Items</h1>
-            <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#F0EDE8' }}>
+            <div className="hidden md:flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#F0EDE8' }}>
               {([
                 { key: 'cards', icon: LayoutGrid },
                 { key: 'list', icon: List },
@@ -533,7 +533,7 @@ export default function RegistryPage() {
       </div>
 
       {/* ── RIGHT PANEL ────────────────────────────────────── */}
-      <div className="flex flex-col h-full border-l overflow-hidden shrink-0" style={{ width: 300, background: 'white', borderColor: '#E8E3D9' }}>
+      <div className="hidden md:flex flex-col h-full border-l overflow-hidden shrink-0" style={{ width: 300, background: 'white', borderColor: '#E8E3D9' }}>
 
         {/* Header */}
         <div className="px-4 pt-4 pb-0 shrink-0">
