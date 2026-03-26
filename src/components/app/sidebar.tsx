@@ -127,10 +127,8 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                 title={collapsed ? label : undefined}
                 className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                 style={{
-                  background: parentActive && sub.length === 0 ? '#2C2B26'
-                    : parentActive && sub.length > 0 ? 'rgba(44,43,38,0.06)'
-                    : 'transparent',
-                  color: parentActive && sub.length === 0 ? '#FAFAF7' : parentActive ? '#2C2B26' : '#8B8670',
+                  background: parentActive && sub.length === 0 ? '#2C2B26' : 'transparent',
+                  color: parentActive ? '#2C2B26' : '#8B8670',
                   minHeight: 36,
                 }}
                 onClick={() => setMobileOpen(false)}
@@ -138,20 +136,19 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                   if (!parentActive) (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)'
                 }}
                 onMouseLeave={(e) => {
-                  if (!parentActive) (e.currentTarget as HTMLElement).style.background = 'transparent'
-                  else if (sub.length > 0) (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)'
+                  if (sub.length > 0 || !parentActive) (e.currentTarget as HTMLElement).style.background = 'transparent'
                 }}
               >
                 <Icon
                   size={16}
                   className="shrink-0"
-                  style={{ color: parentActive && sub.length === 0 ? '#FAFAF7' : parentActive ? '#2C2B26' : '#8B8670' }}
+                  style={{ color: parentActive && sub.length === 0 ? '#FAFAF7' : parentActive ? '#2C2B26' : '#8B8670', flexShrink: 0 }}
                 />
                 {!collapsed && <span className="truncate">{label}</span>}
               </Link>
 
-              {/* Sub-items */}
-              {!collapsed && parentActive && sub.length > 0 && (
+              {/* Sub-items — always visible when not collapsed */}
+              {!collapsed && sub.length > 0 && (
                 <div className="mt-0.5 ml-2 pl-5 flex flex-col gap-0.5 border-l" style={{ borderColor: '#E8E3D9' }}>
                   {sub.map(({ href: subHref, label: subLabel }) => {
                     const subActive = pathname === subHref
