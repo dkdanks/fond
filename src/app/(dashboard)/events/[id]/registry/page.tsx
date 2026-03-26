@@ -291,11 +291,11 @@ export default function RegistryPage() {
             </button>
             <button
               onClick={() => setSettingsOpen(o => !o)}
-              className="hidden md:flex items-center justify-center w-8 h-8 rounded-xl border transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-xl border transition-colors"
               style={{
                 borderColor: settingsOpen ? '#2C2B26' : '#E8E3D9',
                 color: settingsOpen ? '#2C2B26' : '#8B8670',
-                background: settingsOpen ? '#2C2B26' + '08' : 'white',
+                background: settingsOpen ? 'rgba(44,43,38,0.06)' : 'white',
               }}
               title="Display settings"
             >
@@ -545,7 +545,102 @@ export default function RegistryPage() {
         </div>
       </div>
 
-      {/* ── RIGHT PANEL ────────────────────────────────────── */}
+      {/* ── MOBILE SETTINGS BACKDROP ───────────────────────── */}
+      {settingsOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: 'rgba(0,0,0,0.3)' }}
+          onClick={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {/* ── RIGHT PANEL (desktop: slide-in width; mobile: bottom sheet) ──── */}
+      {/* Mobile bottom sheet */}
+      <div
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl border-t transition-transform duration-300 ease-in-out ${settingsOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ background: 'white', borderColor: '#E8E3D9', maxHeight: '75vh' }}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1 shrink-0 cursor-pointer" onClick={() => setSettingsOpen(false)}>
+          <div className="w-10 h-1 rounded-full" style={{ background: '#E8E3D9' }} />
+        </div>
+        {/* Header */}
+        <div className="px-4 pt-2 pb-0 shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold" style={{ color: '#2C2B26' }}>Display settings</span>
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: '#B5A98A' }}>
+              <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
+              {totalRaised > 0 && <span>· {formatCurrency(totalRaised)} raised</span>}
+            </div>
+          </div>
+          <div className="mb-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm" style={{ color: '#8B8670' }}>Show amounts to guests</span>
+              <Toggle on={settings.show_amounts} onChange={v => saveSettings({ ...settings, show_amounts: v })} />
+            </div>
+            {settings.show_amounts && (
+              <div className="rounded-xl border overflow-hidden flex" style={{ borderColor: '#E8E3D9' }}>
+                {([
+                  { label: '$ remaining', value: 'remaining' },
+                  { label: '% funded', value: 'percentage' },
+                  { label: 'X / Y', value: 'current_goal' },
+                ] as const).map(({ label, value }, idx, arr) => (
+                  <button
+                    key={value}
+                    onClick={() => saveSettings({ ...settings, progress_display: value })}
+                    className="flex-1 py-2.5 text-sm font-medium text-center transition-colors"
+                    style={{
+                      background: settings.progress_display === value ? '#2C2B26' : 'white',
+                      color: settings.progress_display === value ? 'white' : '#8B8670',
+                      borderRight: idx < arr.length - 1 ? '1px solid #E8E3D9' : undefined,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Item preview list */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-4 pb-6 flex flex-col gap-2">
+            {items.length === 0 ? (
+              <div className="py-8 text-center">
+                <Gift size={18} className="mx-auto mb-2" style={{ color: '#C8BFA8' }} />
+                <p className="text-xs" style={{ color: '#B5A98A' }}>Items you add will appear here</p>
+              </div>
+            ) : Object.entries(grouped).map(([group, groupItems]) => (
+              <div key={group}>
+                {group !== '__ungrouped__' && (
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2 px-1" style={{ color: '#B5A98A' }}>{group}</p>
+                )}
+                {groupItems.map(item => {
+                  const raised = raisedFor(item.id)
+                  const progress = item.target_amount ? Math.min((raised / item.target_amount) * 100, 100) : 0
+                  return (
+                    <div key={item.id} className="rounded-xl border overflow-hidden" style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}>
+                      <div className="p-3">
+                        <p className="text-sm font-medium mb-0.5" style={{ color: '#2C2B26' }}>{item.title}</p>
+                        {settings.show_amounts && item.target_amount && (
+                          <p className="text-xs mb-1.5" style={{ color: '#8B8670' }}>{formatCurrency(item.target_amount)}</p>
+                        )}
+                        {item.target_amount !== null && (
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: '#E8E3D9' }}>
+                            <div className="h-full rounded-full" style={{ width: `${progress}%`, background: '#8B8670' }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop right panel */}
       <div
         className="hidden md:flex flex-col h-full border-l overflow-hidden shrink-0"
         style={{
