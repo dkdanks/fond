@@ -291,7 +291,7 @@ export default function RegistryPage() {
             </button>
             <button
               onClick={() => setSettingsOpen(o => !o)}
-              className="flex items-center justify-center w-8 h-8 rounded-xl border transition-colors"
+              className="hidden md:flex items-center justify-center w-8 h-8 rounded-xl border transition-colors"
               style={{
                 borderColor: settingsOpen ? '#2C2B26' : '#E8E3D9',
                 color: settingsOpen ? '#2C2B26' : '#8B8670',
@@ -544,6 +544,16 @@ export default function RegistryPage() {
           </div>
         </div>
       </div>
+
+      {/* ── MOBILE SETTINGS TRIGGER (top-right, mirrors burger menu) ──────── */}
+      <button
+        className="md:hidden fixed top-3 right-3 z-40 w-9 h-9 rounded-xl flex items-center justify-center border transition-colors"
+        style={{ background: '#FAFAF7', borderColor: '#E8E3D9', color: '#2C2B26' }}
+        onClick={() => setSettingsOpen(o => !o)}
+        aria-label="Display settings"
+      >
+        <SlidersHorizontal size={15} />
+      </button>
 
       {/* ── MOBILE SETTINGS BACKDROP ───────────────────────── */}
       {settingsOpen && (
