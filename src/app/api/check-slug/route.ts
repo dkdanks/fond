@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
 import { checkRateLimit, getIp } from '@/lib/rate-limit'
 
+// Slugs reserved for static demo/marketing pages under /e/
+const RESERVED_SLUGS = new Set([
+  'sarah-and-james',
+])
+
 export async function GET(request: NextRequest) {
   if (!checkRateLimit(`check-slug:${getIp(request)}`, 30, 60_000)) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 })
@@ -13,6 +18,10 @@ export async function GET(request: NextRequest) {
 
   if (!slug || slug.length < 2) {
     return NextResponse.json({ available: false, slug, reason: 'too_short' })
+  }
+
+  if (RESERVED_SLUGS.has(slug)) {
+    return NextResponse.json({ available: false, slug, reason: 'reserved' })
   }
 
   const supabase = await createClient()
