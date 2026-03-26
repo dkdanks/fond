@@ -1,4 +1,9 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project.
+
+## Project Guides
+
+- [AGENTS.md](/Users/daviddanks/dev/fond/AGENTS.md) for architecture and agent-friendly working conventions
+- [CONTRIBUTING.md](/Users/daviddanks/dev/fond/CONTRIBUTING.md) for the lightweight contributor workflow
 
 ## Getting Started
 
