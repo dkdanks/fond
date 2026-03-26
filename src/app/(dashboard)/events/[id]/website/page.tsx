@@ -936,7 +936,7 @@ export default function WebsiteEditorPage() {
               <Share2 size={12} /> Share
             </button>
             <a
-              href={eventUrl}
+              href={`/events/${id}/preview`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
