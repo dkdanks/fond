@@ -5,27 +5,48 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronDown, ChevronRight, GripVertical, Plus, Trash2, Monitor, Smartphone,
-  Share2, X, Check, Loader2, Eye, EyeOff, ImageIcon,
+  Share2, X, Check, Loader2, Eye, EyeOff, ImageIcon, Sticker,
   Home, BookOpen, CalendarDays, Users, Shirt, MapPin, Gift, HelpCircle, Crown
 } from 'lucide-react'
 import type {
   Event, EventContent, EventType, ScheduleItem, FaqItem,
-  WeddingPartyMember, TravelCard
+  WeddingPartyMember, TravelCard, PlacedSticker
 } from '@/types'
 import { formatDate } from '@/lib/utils'
+import { THEMES, getThemeById, type Theme } from '@/lib/themes'
+import { StickerBrowser } from '@/components/website-editor/sticker-browser'
+import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
+import type { StickerDef } from '@/lib/stickers'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const PALETTES = [
-  { name: 'Forest',  primary: '#2D4A3E', bg: '#EBF2EC' },
-  { name: 'Blush',   primary: '#7B3654', bg: '#FDF0F5' },
-  { name: 'Navy',    primary: '#1B3A5C', bg: '#EFF4FA' },
-  { name: 'Slate',   primary: '#334155', bg: '#F1F5F9' },
-  { name: 'Earth',   primary: '#4A3728', bg: '#F5EDE0' },
-  { name: 'Sage',    primary: '#3D5A48', bg: '#EFF5F0' },
-  { name: 'Noir',    primary: '#1A1A1A', bg: '#FAFAFA' },
-  { name: 'Custom',  primary: '#2C2B26', bg: '#FAFAF7' },
-]
+interface LayoutOption { id: string; label: string; description: string }
+
+const SECTION_LAYOUT_OPTIONS: Partial<Record<string, LayoutOption[]>> = {
+  story: [
+    { id: 'stacked', label: 'Stacked', description: 'Introduction, story, and photos arranged vertically' },
+    { id: 'side-photo', label: 'Side photo', description: 'Text on the left, photos on the right' },
+  ],
+  schedule: [
+    { id: 'timeline', label: 'Timeline', description: 'Vertical timeline with time and venue' },
+    { id: 'cards', label: 'Cards', description: 'Each event as an individual card' },
+  ],
+  wedding_party: [
+    { id: 'grid-4', label: '4-column grid', description: 'Compact grid with circular photos' },
+    { id: 'grid-2', label: '2-column grid', description: 'Larger photos with more detail' },
+  ],
+  faq: [
+    { id: 'accordion', label: 'Accordion', description: 'Questions expand on click' },
+    { id: 'open', label: 'Open list', description: 'All answers visible at once' },
+  ],
+}
+
+const SECTION_LAYOUT_DEFAULTS: Partial<Record<string, string>> = {
+  story: 'stacked',
+  schedule: 'timeline',
+  wedding_party: 'grid-4',
+  faq: 'accordion',
+}
 
 const FONTS = [
   { name: 'Playfair', value: 'Playfair Display', class: 'font-playfair' },
@@ -136,6 +157,36 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function CollapseSection({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[#FAFAF7] transition-colors select-none"
+      >
+        <div className="text-left">
+          <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>{label}</p>
+          {hint && <p className="text-xs" style={{ color: '#B5A98A' }}>{hint}</p>}
+        </div>
+        <ChevronRight
+          size={13}
+          style={{
+            color: '#C8BFA8',
+            transform: open ? 'rotate(90deg)' : 'none',
+            transition: 'transform 150ms',
+          }}
+        />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 flex flex-col gap-3">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Image Upload Input ───────────────────────────────────────────────────────
 
 function ImageUploadInput({ value, onChange, placeholder = 'https://…', eventId, supabase }: {
@@ -196,7 +247,10 @@ interface PreviewProps {
   content: EventContent
   primaryColor: string
   bgColor: string
-  font: string
+  displayFont: string
+  bodyFont: string
+  heroLayout: 'centered' | 'full-bleed' | 'split' | 'illustrated'
+  sectionLayouts: Record<string, string>
   hiddenSections: string[]
   sectionOrder: string[]
   onSectionClick: (s: string) => void
@@ -240,7 +294,7 @@ function PhotoGrid({ images }: { images: string[] }) {
   )
 }
 
-function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSections, sectionOrder, onSectionClick }: PreviewProps) {
+function EventPreview({ event, content, primaryColor, bgColor, displayFont, bodyFont, heroLayout, sectionLayouts, hiddenSections, sectionOrder, onSectionClick }: PreviewProps) {
   const c = content
   const hasStory = c.our_story?.introduction || c.our_story?.story
   const hasSchedule = c.schedule && c.schedule.length > 0
@@ -258,50 +312,155 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
   const isHidden = (s: string) => hiddenSections.includes(s)
 
   return (
-    <div style={{ fontFamily: `'${font}', serif`, background: bgColor, color: primaryColor }}>
-      {/* Inject Google Font */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@300;400;500;600;700&display=swap');`}</style>
+    <div style={{ fontFamily: `'${bodyFont}', serif`, background: bgColor, color: primaryColor }}>
+      {/* Inject Google Fonts */}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(displayFont)}:wght@300;400;500;600;700&family=${encodeURIComponent(bodyFont)}:wght@300;400;500;600;700&display=swap');`}</style>
 
       {/* Hero */}
-      {!isHidden('welcome') && (
-        <section
-          onClick={sectionClick('welcome')}
-          className="cursor-pointer group relative px-8 py-20 text-center"
-          style={{ background: bgColor }}
-          title="Click to edit Welcome"
-        >
+      {!isHidden('welcome') && (() => {
+        const hoverOverlay = (
           <div
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-lg"
             style={{ outline: `2px solid ${primaryColor}`, outlineOffset: -2 }}
           />
-          <h1 className="text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em' }}>{event.title}</h1>
-          {(event.date || event.location) && (
-            <p className="text-sm mb-8 opacity-60">
-              {event.date && formatDate(event.date)}
-              {event.date && event.location && ' · '}
-              {event.location}
-            </p>
-          )}
-          {c.welcome?.greeting && (
-            <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic' }}>
-              {c.welcome.greeting}
-            </p>
-          )}
-          {c.welcome?.show_rsvp !== false && (
-            <div className="flex items-center justify-center gap-4">
-              <button
-                className="px-8 py-3 rounded-full text-sm font-medium"
-                style={{ background: primaryColor, color: bgColor }}
-              >
-                {c.welcome?.rsvp_button_text || 'RSVP'}
-              </button>
-              {c.welcome?.rsvp_deadline && (
-                <p className="text-xs opacity-50">Deadline: {formatDate(c.welcome.rsvp_deadline)}</p>
+        )
+        const rsvpBar = c.welcome?.show_rsvp !== false && (
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <button
+              className="px-8 py-3 rounded-full text-sm font-medium"
+              style={{ background: primaryColor, color: bgColor }}
+            >
+              {c.welcome?.rsvp_button_text || 'RSVP'}
+            </button>
+            {c.welcome?.rsvp_deadline && (
+              <p className="text-xs opacity-50">Deadline: {formatDate(c.welcome.rsvp_deadline)}</p>
+            )}
+          </div>
+        )
+        const metaLine = (event.date || event.location) && (
+          <p className="text-sm opacity-60">
+            {event.date && formatDate(event.date)}
+            {event.date && event.location && ' · '}
+            {event.location}
+          </p>
+        )
+
+        if (heroLayout === 'full-bleed') {
+          const coverUrl = event.cover_image_url
+          return (
+            <section
+              onClick={sectionClick('welcome')}
+              className="cursor-pointer group relative min-h-[50vh] flex flex-col items-center justify-center text-center"
+              style={{
+                background: coverUrl
+                  ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${coverUrl}) center/cover no-repeat`
+                  : primaryColor,
+                color: 'white',
+              }}
+              title="Click to edit Welcome"
+            >
+              {hoverOverlay}
+              <div className="relative px-8 py-20 flex flex-col items-center gap-6 w-full">
+                <h1 className="text-5xl font-semibold" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                {metaLine && <div style={{ opacity: 0.8 }}>{metaLine}</div>}
+                {c.welcome?.greeting && (
+                  <p className="text-lg leading-relaxed max-w-xl opacity-90" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                    {c.welcome.greeting}
+                  </p>
+                )}
+                {rsvpBar}
+              </div>
+            </section>
+          )
+        }
+
+        if (heroLayout === 'split') {
+          const coverUrl = event.cover_image_url
+          return (
+            <section
+              onClick={sectionClick('welcome')}
+              className="cursor-pointer group relative flex min-h-[55vh]"
+              style={{ background: bgColor }}
+              title="Click to edit Welcome"
+            >
+              {hoverOverlay}
+              {/* Text side */}
+              <div className="flex-1 flex flex-col justify-center px-8 py-16 gap-5">
+                <h1 className="text-4xl font-semibold leading-tight" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
+                {metaLine && <div className="text-sm">{metaLine}</div>}
+                {c.welcome?.greeting && (
+                  <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                    {c.welcome.greeting}
+                  </p>
+                )}
+                {rsvpBar}
+              </div>
+              {/* Image side */}
+              <div
+                className="flex-1"
+                style={{
+                  background: coverUrl
+                    ? `url(${coverUrl}) center/cover no-repeat`
+                    : `${primaryColor}15`,
+                }}
+              />
+            </section>
+          )
+        }
+
+        if (heroLayout === 'illustrated') {
+          return (
+            <section
+              onClick={sectionClick('welcome')}
+              className="cursor-pointer group relative px-8 py-24 text-center"
+              style={{ background: bgColor }}
+              title="Click to edit Welcome"
+            >
+              {hoverOverlay}
+              {/* Decorative top border */}
+              <div className="mb-8 flex items-center justify-center gap-3 opacity-30">
+                <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
+                <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
+              </div>
+              <h1 className="text-5xl font-semibold mb-4" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.01em' }}>{event.title}</h1>
+              {metaLine && <div className="mb-8 text-sm">{metaLine}</div>}
+              {/* Decorative bottom border */}
+              <div className="mt-2 mb-8 flex items-center justify-center gap-3 opacity-30">
+                <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
+                <div className="h-px flex-1 max-w-24" style={{ background: primaryColor }} />
+              </div>
+              {c.welcome?.greeting && (
+                <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                  {c.welcome.greeting}
+                </p>
               )}
-            </div>
-          )}
-        </section>
-      )}
+              {rsvpBar}
+            </section>
+          )
+        }
+
+        // Default: centered
+        return (
+          <section
+            onClick={sectionClick('welcome')}
+            className="cursor-pointer group relative px-8 py-20 text-center"
+            style={{ background: bgColor }}
+            title="Click to edit Welcome"
+          >
+            {hoverOverlay}
+            <h1 className="text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em', fontFamily: `'${displayFont}', serif` }}>{event.title}</h1>
+            {metaLine && <div className="mb-8">{metaLine}</div>}
+            {c.welcome?.greeting && (
+              <p className="text-lg leading-relaxed max-w-xl mx-auto mb-10 opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>
+                {c.welcome.greeting}
+              </p>
+            )}
+            {rsvpBar}
+          </section>
+        )
+      })()}
 
       {/* Render non-welcome sections in sectionOrder */}
       {sectionOrder.filter(k => k !== 'welcome').map(key => {
@@ -309,6 +468,7 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
 
         if (key === 'story') {
           if (!hasStory) return null
+          const storyLayout = sectionLayouts['story'] ?? 'stacked'
           return (
             <section key="story"
               onClick={sectionClick('story')}
@@ -321,15 +481,29 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
                 style={{ outline: `2px solid ${primaryColor}`, outlineOffset: -2 }}
               />
               <p className="text-xs font-semibold uppercase tracking-widest mb-8 opacity-40 text-center">Our Story</p>
-              <div className="max-w-2xl mx-auto">
-                {c.our_story?.introduction && (
-                  <p className="text-lg leading-relaxed mb-6 font-medium">{c.our_story.introduction}</p>
-                )}
-                {c.our_story?.story && (
-                  <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>
-                )}
-                <PhotoGrid images={c.our_story?.images ?? []} />
-              </div>
+              {storyLayout === 'side-photo' ? (
+                <div className="max-w-4xl mx-auto grid grid-cols-2 gap-10 items-start">
+                  <div>
+                    {c.our_story?.introduction && (
+                      <p className="text-lg leading-relaxed mb-6 font-medium" style={{ fontFamily: `'${displayFont}', serif` }}>{c.our_story.introduction}</p>
+                    )}
+                    {c.our_story?.story && (
+                      <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>
+                    )}
+                  </div>
+                  <PhotoGrid images={c.our_story?.images ?? []} />
+                </div>
+              ) : (
+                <div className="max-w-2xl mx-auto">
+                  {c.our_story?.introduction && (
+                    <p className="text-lg leading-relaxed mb-6 font-medium" style={{ fontFamily: `'${displayFont}', serif` }}>{c.our_story.introduction}</p>
+                  )}
+                  {c.our_story?.story && (
+                    <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>
+                  )}
+                  <PhotoGrid images={c.our_story?.images ?? []} />
+                </div>
+              )}
             </section>
           )
         }
@@ -348,21 +522,34 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
                 style={{ outline: `2px solid ${primaryColor}`, outlineOffset: -2 }}
               />
               <p className="text-xs font-semibold uppercase tracking-widest mb-10 opacity-40 text-center">Schedule</p>
-              <div className="max-w-2xl mx-auto grid gap-8">
-                {(c.schedule ?? []).map(item => (
-                  <div key={item.id} className="flex gap-6">
-                    <div className="text-right shrink-0 w-20">
-                      <p className="text-sm font-medium opacity-50">{item.time}</p>
-                    </div>
-                    <div className="flex-1 border-l pl-6" style={{ borderColor: `${primaryColor}20` }}>
+              {(sectionLayouts['schedule'] ?? 'timeline') === 'cards' ? (
+                <div className="max-w-2xl mx-auto grid grid-cols-2 gap-4">
+                  {(c.schedule ?? []).map(item => (
+                    <div key={item.id} className="p-5 rounded-2xl border" style={{ borderColor: `${primaryColor}15` }}>
+                      {item.time && <p className="text-xs font-medium opacity-40 mb-2">{item.time}</p>}
                       <p className="font-semibold mb-1">{item.title}</p>
                       {item.venue && <p className="text-sm opacity-60">{item.venue}</p>}
-                      {item.address && <p className="text-xs opacity-40">{item.address}</p>}
-                      {item.notes && <p className="text-sm mt-2 opacity-60 italic">{item.notes}</p>}
+                      {item.notes && <p className="text-xs mt-2 opacity-50 italic">{item.notes}</p>}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="max-w-2xl mx-auto grid gap-8">
+                  {(c.schedule ?? []).map(item => (
+                    <div key={item.id} className="flex gap-6">
+                      <div className="text-right shrink-0 w-20">
+                        <p className="text-sm font-medium opacity-50">{item.time}</p>
+                      </div>
+                      <div className="flex-1 border-l pl-6" style={{ borderColor: `${primaryColor}20` }}>
+                        <p className="font-semibold mb-1">{item.title}</p>
+                        {item.venue && <p className="text-sm opacity-60">{item.venue}</p>}
+                        {item.address && <p className="text-xs opacity-40">{item.address}</p>}
+                        {item.notes && <p className="text-sm mt-2 opacity-60 italic">{item.notes}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )
         }
@@ -384,22 +571,43 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
               {c.wedding_party?.introduction && (
                 <p className="text-center text-base opacity-60 mb-10 max-w-lg mx-auto">{c.wedding_party.introduction}</p>
               )}
-              <div className="grid grid-cols-4 gap-6 max-w-3xl mx-auto">
-                {(c.wedding_party?.members ?? []).map(m => (
-                  <div key={m.id} className="text-center">
-                    <div
-                      className="w-20 h-20 rounded-full mx-auto mb-3 bg-cover bg-center"
-                      style={{
-                        backgroundImage: m.photo_url ? `url(${m.photo_url})` : undefined,
-                        background: m.photo_url ? undefined : `${primaryColor}15`,
-                      }}
-                    />
-                    <p className="font-medium text-sm">{m.name || ROLE_LABELS[m.role]}</p>
-                    <p className="text-xs opacity-40 mt-0.5">{ROLE_LABELS[m.role]}</p>
-                    {m.story && <p className="text-xs opacity-50 mt-2 leading-relaxed px-1">{m.story}</p>}
-                  </div>
-                ))}
-              </div>
+              {(sectionLayouts['wedding_party'] ?? 'grid-4') === 'grid-2' ? (
+                <div className="grid grid-cols-2 gap-8 max-w-2xl mx-auto">
+                  {(c.wedding_party?.members ?? []).map(m => (
+                    <div key={m.id} className="flex gap-5 items-start">
+                      <div
+                        className="w-24 h-24 rounded-2xl shrink-0 bg-cover bg-center"
+                        style={{
+                          backgroundImage: m.photo_url ? `url(${m.photo_url})` : undefined,
+                          background: m.photo_url ? undefined : `${primaryColor}15`,
+                        }}
+                      />
+                      <div className="pt-1">
+                        <p className="font-medium">{m.name || ROLE_LABELS[m.role]}</p>
+                        <p className="text-xs opacity-40 mt-0.5 mb-2">{ROLE_LABELS[m.role]}</p>
+                        {m.story && <p className="text-sm opacity-60 leading-relaxed">{m.story}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-6 max-w-3xl mx-auto">
+                  {(c.wedding_party?.members ?? []).map(m => (
+                    <div key={m.id} className="text-center">
+                      <div
+                        className="w-20 h-20 rounded-full mx-auto mb-3 bg-cover bg-center"
+                        style={{
+                          backgroundImage: m.photo_url ? `url(${m.photo_url})` : undefined,
+                          background: m.photo_url ? undefined : `${primaryColor}15`,
+                        }}
+                      />
+                      <p className="font-medium text-sm">{m.name || ROLE_LABELS[m.role]}</p>
+                      <p className="text-xs opacity-40 mt-0.5">{ROLE_LABELS[m.role]}</p>
+                      {m.story && <p className="text-xs opacity-50 mt-2 leading-relaxed px-1">{m.story}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )
         }
@@ -504,28 +712,39 @@ function EventPreview({ event, content, primaryColor, bgColor, font, hiddenSecti
                 style={{ outline: `2px solid ${primaryColor}`, outlineOffset: -2 }}
               />
               <p className="text-xs font-semibold uppercase tracking-widest mb-10 opacity-40 text-center">FAQ</p>
-              <div className="max-w-2xl mx-auto flex flex-col gap-0">
-                {(c.faq ?? []).map(item => (
-                  <div
-                    key={item.id}
-                    className="border-t py-5"
-                    style={{ borderColor: `${primaryColor}15` }}
-                    onClick={e => { e.stopPropagation(); setOpenFaq(openFaq === item.id ? null : item.id) }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{item.question}</p>
-                      <ChevronDown
-                        size={16}
-                        className="transition-transform shrink-0 ml-4"
-                        style={{ opacity: 0.4, transform: openFaq === item.id ? 'rotate(180deg)' : 'none' }}
-                      />
+              {(sectionLayouts['faq'] ?? 'accordion') === 'open' ? (
+                <div className="max-w-2xl mx-auto flex flex-col gap-8">
+                  {(c.faq ?? []).map(item => (
+                    <div key={item.id}>
+                      <p className="font-medium mb-2">{item.question}</p>
+                      <p className="text-sm leading-relaxed" style={{ opacity: 0.65 }}>{item.answer}</p>
                     </div>
-                    {openFaq === item.id && (
-                      <p className="text-sm mt-3 leading-relaxed" style={{ opacity: 0.65 }}>{item.answer}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="max-w-2xl mx-auto flex flex-col gap-0">
+                  {(c.faq ?? []).map(item => (
+                    <div
+                      key={item.id}
+                      className="border-t py-5"
+                      style={{ borderColor: `${primaryColor}15` }}
+                      onClick={e => { e.stopPropagation(); setOpenFaq(openFaq === item.id ? null : item.id) }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">{item.question}</p>
+                        <ChevronDown
+                          size={16}
+                          className="transition-transform shrink-0 ml-4"
+                          style={{ opacity: 0.4, transform: openFaq === item.id ? 'rotate(180deg)' : 'none' }}
+                        />
+                      </div>
+                      {openFaq === item.id && (
+                        <p className="text-sm mt-3 leading-relaxed" style={{ opacity: 0.65 }}>{item.answer}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )
         }
@@ -584,7 +803,13 @@ export default function WebsiteEditorPage() {
   const [paletteKey, setPaletteKey] = useState<string>('Forest')
   const [customPrimary, setCustomPrimary] = useState('#2C2B26')
   const [customBg, setCustomBg] = useState('#FAFAF7')
-  const [font, setFont] = useState('Playfair Display')
+  const [displayFont, setDisplayFont] = useState('Cormorant Garamond')
+  const [bodyFont, setBodyFont] = useState('Lora')
+  const [activeThemeId, setActiveThemeId] = useState<string | null>('classic')
+  const [showThemePicker, setShowThemePicker] = useState(false)
+  const [heroLayout, setHeroLayout] = useState<'centered' | 'full-bleed' | 'split' | 'illustrated'>('centered')
+  const [sectionLayouts, setSectionLayouts] = useState<Record<string, string>>({})
+  const [layoutPickerSection, setLayoutPickerSection] = useState<string | null>(null)
   const [tab, setTab] = useState<'design' | 'content'>('design')
   const [activeSection, setActiveSection] = useState<string | null>('welcome')
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop')
@@ -600,6 +825,8 @@ export default function WebsiteEditorPage() {
   const [addingSectionTitle, setAddingSectionTitle] = useState('')
   const [showAddSection, setShowAddSection] = useState(false)
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
+  const [stickers, setStickers] = useState<PlacedSticker[]>([])
+  const [showStickerBrowser, setShowStickerBrowser] = useState(false)
 
   useEffect(() => {
     if (!mobileEditorOpen) return
@@ -637,7 +864,20 @@ export default function WebsiteEditorPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedFont = (data.content as any)?._font
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setFont(savedFont ?? (data as any).font_family ?? 'Playfair Display')
+      const savedDisplayFont = (data.content as any)?._displayFont
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedBodyFont = (data.content as any)?._bodyFont
+      setDisplayFont(savedDisplayFont ?? savedFont ?? (data as any).font_family ?? 'Cormorant Garamond')
+      setBodyFont(savedBodyFont ?? 'Lora')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedTheme = (data.content as any)?._theme
+      setActiveThemeId(savedTheme ?? null)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedHeroLayout = (data.content as any)?._heroLayout
+      setHeroLayout(savedHeroLayout ?? 'centered')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedSectionLayouts = (data.content as any)?._section_layouts
+      setSectionLayouts(savedSectionLayouts ?? {})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pw = (data as any).access_password ?? ''
       setSharePassword(pw)
@@ -648,6 +888,9 @@ export default function WebsiteEditorPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedHidden = (data.content as any)?._hidden_sections
       setHiddenSections(savedHidden ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const savedStickers = (data.content as any)?._stickers
+      setStickers(savedStickers ?? [])
     }
     load()
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -679,20 +922,93 @@ export default function WebsiteEditorPage() {
     setPrimaryColor(primary)
     setBgColor(bg)
     setPaletteKey(key)
+    setActiveThemeId(null)
     setContent(prev => {
-      const next = { ...prev, _palette: { primary, bg }, _paletteKey: key }
+      const next = { ...prev, _palette: { primary, bg }, _paletteKey: key, _theme: undefined }
       scheduleSave({ primary_color: primary, accent_color: bg, content: next })
       return next
     })
   }
 
-  function setFontFamily(f: string) {
-    setFont(f)
+  function applyTheme(theme: Theme) {
+    setActiveThemeId(theme.id)
+    setPrimaryColor(theme.primary)
+    setBgColor(theme.bg)
+    setPaletteKey('Custom')
+    setCustomPrimary(theme.primary)
+    setCustomBg(theme.bg)
+    setDisplayFont(theme.displayFont)
+    setBodyFont(theme.bodyFont)
+    setHeroLayout(theme.heroLayout)
     setContent(prev => {
-      const next = { ...prev, _font: f }
-      scheduleSave({ font_family: f, content: next })
+      const next = {
+        ...prev,
+        _theme: theme.id,
+        _palette: { primary: theme.primary, bg: theme.bg },
+        _paletteKey: 'Custom',
+        _displayFont: theme.displayFont,
+        _bodyFont: theme.bodyFont,
+        _heroLayout: theme.heroLayout,
+      }
+      scheduleSave({ primary_color: theme.primary, accent_color: theme.bg, content: next })
       return next
     })
+    setShowThemePicker(false)
+  }
+
+  function setDisplayFontFamily(f: string) {
+    setDisplayFont(f)
+    setActiveThemeId(null)
+    setContent(prev => {
+      const next = { ...prev, _displayFont: f, _theme: undefined }
+      scheduleSave({ content: next })
+      return next
+    })
+  }
+
+  function setBodyFontFamily(f: string) {
+    setBodyFont(f)
+    setActiveThemeId(null)
+    setContent(prev => {
+      const next = { ...prev, _bodyFont: f, _theme: undefined }
+      scheduleSave({ content: next })
+      return next
+    })
+  }
+
+  function setSectionLayout(sectionKey: string, layoutId: string) {
+    setSectionLayouts(prev => {
+      const next = { ...prev, [sectionKey]: layoutId }
+      setContent(c => {
+        const nc = { ...c, _section_layouts: next }
+        scheduleSave({ content: nc })
+        return nc
+      })
+      return next
+    })
+  }
+
+  function updateStickers(next: PlacedSticker[]) {
+    setStickers(next)
+    setContent(c => {
+      const nc = { ...c, _stickers: next }
+      scheduleSave({ content: nc })
+      return nc
+    })
+  }
+
+  function addSticker(def: StickerDef) {
+    const newSticker: PlacedSticker = {
+      id: Math.random().toString(36).slice(2, 10),
+      src: def.src,
+      x: 50,
+      y: 8,
+      width: 15,
+      rotation: 0,
+      opacity: 1,
+      color: primaryColor,
+    }
+    updateStickers([...stickers, newSticker])
   }
 
   function openSection(s: string) {
@@ -971,16 +1287,26 @@ export default function WebsiteEditorPage() {
               </div>
             </div>
 
-            <EventPreview
-              event={event}
-              content={content}
-              primaryColor={primaryColor}
-              bgColor={bgColor}
-              font={font}
-              hiddenSections={hiddenSections}
-              sectionOrder={sectionOrder}
-              onSectionClick={openSection}
-            />
+            <div className="relative">
+              <EventPreview
+                event={event}
+                content={content}
+                primaryColor={primaryColor}
+                bgColor={bgColor}
+                displayFont={displayFont}
+                bodyFont={bodyFont}
+                heroLayout={heroLayout}
+                sectionLayouts={sectionLayouts}
+                hiddenSections={hiddenSections}
+                sectionOrder={sectionOrder}
+                onSectionClick={openSection}
+              />
+              <StickerCanvas
+                stickers={stickers}
+                onChange={updateStickers}
+                primaryColor={primaryColor}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1008,14 +1334,29 @@ export default function WebsiteEditorPage() {
         <div className="shrink-0 px-4 pt-4 pb-0">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold" style={{ color: '#2C2B26' }}>Website</span>
-            <span
-              className="text-xs transition-all"
-              style={{
-                color: saveState === 'saving' ? '#B5A98A' : saveState === 'saved' ? '#4CAF50' : 'transparent',
-              }}
-            >
-              {saveState === 'saving' ? 'Saving…' : 'Saved'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs transition-all"
+                style={{
+                  color: saveState === 'saving' ? '#B5A98A' : saveState === 'saved' ? '#4CAF50' : 'transparent',
+                }}
+              >
+                {saveState === 'saving' ? 'Saving…' : 'Saved'}
+              </span>
+              <button
+                onClick={() => setShowStickerBrowser(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all"
+                style={{
+                  borderColor: showStickerBrowser ? '#2C2B26' : '#E8E3D9',
+                  background: showStickerBrowser ? '#2C2B26' : 'transparent',
+                  color: showStickerBrowser ? 'white' : '#8B8670',
+                }}
+                title="Add sticker"
+              >
+                <Sticker size={12} />
+                <span>Stickers</span>
+              </button>
+            </div>
           </div>
           {/* Design / Content tabs */}
           <div className="flex gap-0 border-b" style={{ borderColor: '#F0EDE8' }}>
@@ -1041,132 +1382,153 @@ export default function WebsiteEditorPage() {
 
           {/* ── DESIGN TAB ─────────────────────────────────────────────── */}
           {tab === 'design' && (
-            <div className="p-4 flex flex-col gap-6">
+            <div className="flex flex-col">
 
-              {/* Color palettes */}
-              <div>
-                <Label>Colour theme</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {PALETTES.map(p => {
-                    const active = paletteKey === p.name
-                    const swatchPrimary = p.name === 'Custom' ? customPrimary : p.primary
-                    const swatchBg = p.name === 'Custom' ? customBg : p.bg
-                    return (
-                      <button
-                        key={p.name}
-                        onClick={() => {
-                          if (p.name === 'Custom') {
-                            setPalette(customPrimary, customBg, 'Custom')
-                          } else {
-                            setPalette(p.primary, p.bg, p.name)
-                          }
-                        }}
-                        className="flex flex-col items-center gap-1.5"
-                      >
-                        <div
-                          className="w-full h-10 rounded-xl overflow-hidden border-2 transition-all"
-                          style={{ borderColor: active ? '#2C2B26' : 'transparent' }}
-                        >
-                          <div className="h-full flex">
-                            <div className="flex-1" style={{ background: swatchPrimary }} />
-                            <div className="flex-1" style={{ background: swatchBg }} />
-                          </div>
-                        </div>
-                        <span className="text-xs" style={{ color: active ? '#2C2B26' : '#B5A98A' }}>{p.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Custom color picker — shown only when Custom palette is active */}
-                {paletteKey === 'Custom' && (
+              {/* Theme Card */}
+              <div className="p-4">
+                <Label>Theme</Label>
+                <button
+                  onClick={() => setShowThemePicker(true)}
+                  className="w-full rounded-2xl overflow-hidden border group transition-all"
+                  style={{ borderColor: '#E8E3D9' }}
+                >
+                  {/* Mini preview */}
                   <div
-                    className="rounded-2xl border p-4 mt-3"
-                    style={{ background: 'white', borderColor: '#E8E3D9' }}
+                    className="h-16 flex flex-col items-center justify-center px-4"
+                    style={{ background: bgColor }}
                   >
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Text color */}
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-xs" style={{ color: '#8B8670' }}>Text color</span>
-                        <input
-                          type="color"
-                          className="w-full h-20 rounded-xl cursor-pointer border-0 p-0"
-                          value={customPrimary}
-                          onChange={e => {
-                            const val = e.target.value
-                            setCustomPrimary(val)
-                            setPalette(val, customBg, 'Custom')
-                          }}
-                        />
-                        <input
-                          type="text"
-                          className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
-                          style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
-                          value={customPrimary}
-                          onChange={e => setCustomPrimary(e.target.value)}
-                          onBlur={e => {
-                            const val = e.target.value
-                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                              setPalette(val, customBg, 'Custom')
-                            }
-                          }}
-                        />
-                      </div>
-                      {/* Background color */}
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-xs" style={{ color: '#8B8670' }}>Page background</span>
-                        <input
-                          type="color"
-                          className="w-full h-20 rounded-xl cursor-pointer border-0 p-0"
-                          value={customBg}
-                          onChange={e => {
-                            const val = e.target.value
-                            setCustomBg(val)
-                            setPalette(customPrimary, val, 'Custom')
-                          }}
-                        />
-                        <input
-                          type="text"
-                          className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
-                          style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
-                          value={customBg}
-                          onChange={e => setCustomBg(e.target.value)}
-                          onBlur={e => {
-                            const val = e.target.value
-                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                              setPalette(customPrimary, val, 'Custom')
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <p
+                      className="text-base font-semibold leading-tight"
+                      style={{ fontFamily: `'${displayFont}', serif`, color: primaryColor }}
+                    >
+                      {event?.title || 'Your Event'}
+                    </p>
                   </div>
-                )}
+                  {/* Label bar */}
+                  <div
+                    className="px-4 py-2.5 flex items-center justify-between border-t"
+                    style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+                  >
+                    <div className="text-left">
+                      <p className="text-xs font-semibold" style={{ color: '#2C2B26' }}>
+                        {activeThemeId ? (getThemeById(activeThemeId)?.name ?? 'Custom') : 'Custom'}
+                      </p>
+                      <p className="text-xs" style={{ color: '#B5A98A' }}>
+                        {activeThemeId ? (getThemeById(activeThemeId)?.description ?? '') : 'Customised'}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#8B8670' }}>
+                      Change
+                    </span>
+                  </div>
+                </button>
               </div>
 
-              <div className="border-t" style={{ borderColor: '#F0EDE8' }} />
+              {/* Colours */}
+              <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
+                <CollapseSection label="Colours">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs" style={{ color: '#8B8670' }}>Text colour</span>
+                      <input
+                        type="color"
+                        className="w-full h-14 rounded-xl cursor-pointer border-0 p-0"
+                        value={customPrimary}
+                        onChange={e => {
+                          const val = e.target.value
+                          setCustomPrimary(val)
+                          setPalette(val, customBg, 'Custom')
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
+                        style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
+                        value={customPrimary}
+                        onChange={e => setCustomPrimary(e.target.value)}
+                        onBlur={e => {
+                          const val = e.target.value
+                          if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                            setPalette(val, customBg, 'Custom')
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs" style={{ color: '#8B8670' }}>Page background</span>
+                      <input
+                        type="color"
+                        className="w-full h-14 rounded-xl cursor-pointer border-0 p-0"
+                        value={customBg}
+                        onChange={e => {
+                          const val = e.target.value
+                          setCustomBg(val)
+                          setPalette(customPrimary, val, 'Custom')
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
+                        style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
+                        value={customBg}
+                        onChange={e => setCustomBg(e.target.value)}
+                        onBlur={e => {
+                          const val = e.target.value
+                          if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                            setPalette(customPrimary, val, 'Custom')
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </CollapseSection>
+              </div>
 
-              {/* Fonts */}
-              <div>
-                <Label>Font</Label>
-                {/* Preload all fonts */}
-                <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&family=Lora:wght@400;500;600&family=EB+Garamond:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600&family=Josefin+Sans:wght@300;400;600&family=Montserrat:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&family=DM+Serif+Display&family=Italiana&family=Great+Vibes&display=swap');`}</style>
-                <div className="flex flex-col gap-1.5">
-                  {FONTS.map(f => (
-                    <button
-                      key={f.value}
-                      onClick={() => setFontFamily(f.value)}
-                      className="px-4 py-3 rounded-xl text-left transition-all text-sm"
-                      style={{
-                        fontFamily: `'${f.value}', serif`,
-                        background: font === f.value ? '#2C2B26' : '#FAFAF7',
-                        color: font === f.value ? 'white' : '#2C2B26',
-                      }}
-                    >
-                      {f.name}
-                    </button>
-                  ))}
-                </div>
+              {/* Fonts — preload */}
+              <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&family=Lora:wght@400;500;600&family=EB+Garamond:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600&family=Josefin+Sans:wght@300;400;600&family=Montserrat:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&family=DM+Serif+Display&family=Italiana&family=Great+Vibes&display=swap');`}</style>
+
+              {/* Display / heading font */}
+              <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
+                <CollapseSection label="Display font" hint="Names, headings, and highlighted text">
+                  <div className="flex flex-col gap-1.5">
+                    {FONTS.map(f => (
+                      <button
+                        key={f.value}
+                        onClick={() => setDisplayFontFamily(f.value)}
+                        className="px-4 py-3 rounded-xl text-left transition-all text-sm"
+                        style={{
+                          fontFamily: `'${f.value}', serif`,
+                          background: displayFont === f.value ? '#2C2B26' : '#FAFAF7',
+                          color: displayFont === f.value ? 'white' : '#2C2B26',
+                        }}
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                </CollapseSection>
+              </div>
+
+              {/* Body font */}
+              <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
+                <CollapseSection label="Body font" hint="Paragraphs and supporting text">
+                  <div className="flex flex-col gap-1.5">
+                    {FONTS.map(f => (
+                      <button
+                        key={f.value}
+                        onClick={() => setBodyFontFamily(f.value)}
+                        className="px-4 py-3 rounded-xl text-left transition-all text-sm"
+                        style={{
+                          fontFamily: `'${f.value}', serif`,
+                          background: bodyFont === f.value ? '#2C2B26' : '#FAFAF7',
+                          color: bodyFont === f.value ? 'white' : '#2C2B26',
+                        }}
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                </CollapseSection>
               </div>
             </div>
           )}
@@ -1361,9 +1723,53 @@ export default function WebsiteEditorPage() {
                     {isOpen && (
                       <div className="px-4 pb-4 flex flex-col gap-4">
 
+                        {/* Edit Layout button — shown for sections that have layout options */}
+                        {SECTION_LAYOUT_OPTIONS[sectionKey] && (
+                          <button
+                            onClick={() => setLayoutPickerSection(sectionKey)}
+                            className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl border text-xs font-medium transition-colors"
+                            style={{ borderColor: '#E8E3D9', color: '#8B8670', background: '#FAFAF7' }}
+                          >
+                            <span>Layout: <span style={{ color: '#2C2B26' }}>{SECTION_LAYOUT_OPTIONS[sectionKey]?.find(o => o.id === (sectionLayouts[sectionKey] ?? SECTION_LAYOUT_DEFAULTS[sectionKey]))?.label ?? 'Default'}</span></span>
+                            <span style={{ color: '#C8BFA8' }}>Edit</span>
+                          </button>
+                        )}
+
                         {/* WELCOME */}
                         {sectionKey === 'welcome' && (
                           <>
+                            {/* Hero layout */}
+                            <div>
+                              <Label>Hero layout</Label>
+                              <div className="grid grid-cols-2 gap-2">
+                                {([
+                                  { id: 'centered', label: 'Centered' },
+                                  { id: 'full-bleed', label: 'Full bleed' },
+                                  { id: 'split', label: 'Split' },
+                                  { id: 'illustrated', label: 'Illustrated' },
+                                ] as const).map(opt => (
+                                  <button
+                                    key={opt.id}
+                                    onClick={() => {
+                                      setHeroLayout(opt.id)
+                                      setContent(prev => {
+                                        const next = { ...prev, _heroLayout: opt.id }
+                                        scheduleSave({ content: next })
+                                        return next
+                                      })
+                                    }}
+                                    className="py-2 rounded-xl text-xs font-medium transition-all border"
+                                    style={{
+                                      borderColor: heroLayout === opt.id ? '#2C2B26' : '#E8E3D9',
+                                      background: heroLayout === opt.id ? '#2C2B26' : '#FAFAF7',
+                                      color: heroLayout === opt.id ? 'white' : '#8B8670',
+                                    }}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                             <Field label="Page title">
                               <input
                                 className={inputCls}
@@ -1945,6 +2351,123 @@ export default function WebsiteEditorPage() {
         />
       )}
 
+      {/* ── THEME PICKER MODAL ──────────────────────────────────────────── */}
+      {showThemePicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowThemePicker(false) }}
+        >
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Italiana&family=Josefin+Sans:wght@300;400;600&family=Playfair+Display:wght@400;500;600&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@300;400;600&display=swap');`}</style>
+          <div className="rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden" style={{ background: 'white', maxHeight: '85vh' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 pt-7 pb-5 shrink-0">
+              <div>
+                <h2 className="text-xl font-semibold" style={{ color: '#2C2B26' }}>Choose a theme</h2>
+                <p className="text-sm mt-0.5" style={{ color: '#8B8670' }}>Your fonts and colours will update to match — you can still customise everything.</p>
+              </div>
+              <button
+                onClick={() => setShowThemePicker(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: '#F0EDE8' }}
+              >
+                <X size={14} style={{ color: '#8B8670' }} />
+              </button>
+            </div>
+            {/* Grid */}
+            <div className="overflow-y-auto px-8 pb-8">
+              <div className="grid grid-cols-3 gap-4">
+                {THEMES.map(theme => {
+                  const active = activeThemeId === theme.id
+                  return (
+                    <button
+                      key={theme.id}
+                      onClick={() => applyTheme(theme)}
+                      className="text-left rounded-2xl overflow-hidden border-2 transition-all"
+                      style={{ borderColor: active ? '#2C2B26' : '#E8E3D9' }}
+                    >
+                      {/* Mini preview */}
+                      <div
+                        className="h-24 flex flex-col items-center justify-center px-3"
+                        style={{ background: theme.bg }}
+                      >
+                        <p
+                          className="text-base font-semibold leading-tight text-center"
+                          style={{ fontFamily: `'${theme.displayFont}', serif`, color: theme.primary }}
+                        >
+                          {event?.title || 'Your Event'}
+                        </p>
+                        <p
+                          className="text-xs mt-1 opacity-50 text-center"
+                          style={{ fontFamily: `'${theme.bodyFont}', serif`, color: theme.primary }}
+                        >
+                          {theme.description}
+                        </p>
+                      </div>
+                      {/* Label */}
+                      <div
+                        className="px-3 py-2 flex items-center justify-between"
+                        style={{ background: active ? '#2C2B26' : '#FAFAF7' }}
+                      >
+                        <span className="text-xs font-semibold" style={{ color: active ? 'white' : '#2C2B26' }}>
+                          {theme.name}
+                        </span>
+                        {active && (
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'white' }}>
+                            <div className="w-2 h-2 rounded-full" style={{ background: '#2C2B26' }} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SECTION LAYOUT PICKER MODAL ─────────────────────────────────── */}
+      {layoutPickerSection && SECTION_LAYOUT_OPTIONS[layoutPickerSection] && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={e => { if (e.target === e.currentTarget) setLayoutPickerSection(null) }}
+        >
+          <div className="rounded-3xl w-full max-w-sm shadow-2xl" style={{ background: 'white' }}>
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-base font-semibold" style={{ color: '#2C2B26' }}>Choose layout</h2>
+              <button
+                onClick={() => setLayoutPickerSection(null)}
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: '#F0EDE8' }}
+              >
+                <X size={12} style={{ color: '#8B8670' }} />
+              </button>
+            </div>
+            <div className="px-6 pb-6 flex flex-col gap-2">
+              {SECTION_LAYOUT_OPTIONS[layoutPickerSection]!.map(opt => {
+                const active = (sectionLayouts[layoutPickerSection] ?? SECTION_LAYOUT_DEFAULTS[layoutPickerSection]) === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setSectionLayout(layoutPickerSection, opt.id); setLayoutPickerSection(null) }}
+                    className="text-left px-4 py-3 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: active ? '#2C2B26' : '#E8E3D9',
+                      background: active ? 'rgba(44,43,38,0.04)' : 'white',
+                    }}
+                  >
+                    <p className="text-sm font-semibold mb-0.5" style={{ color: '#2C2B26' }}>{opt.label}</p>
+                    <p className="text-xs" style={{ color: '#8B8670' }}>{opt.description}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── SHARE MODAL ─────────────────────────────────────────────────── */}
       {showShare && (
         <div
@@ -2010,6 +2533,14 @@ export default function WebsiteEditorPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* ── STICKER BROWSER MODAL ───────────────────────────────────────── */}
+      {showStickerBrowser && (
+        <StickerBrowser
+          onAdd={addSticker}
+          onClose={() => setShowStickerBrowser(false)}
+        />
       )}
     </div>
   )

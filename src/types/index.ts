@@ -50,6 +50,17 @@ export interface TravelCard {
   button_text?: string
 }
 
+export interface PlacedSticker {
+  id: string        // unique instance id
+  src: string       // path e.g. '/stickers/florals/rose.svg'
+  x: number         // % of preview width  (0–100)
+  y: number         // % of preview height (0–100)
+  width: number     // % of preview width
+  rotation: number  // degrees
+  opacity: number   // 0–1
+  color: string     // tint color (hex), applied via CSS currentColor
+}
+
 export interface EventContent {
   welcome?: {
     greeting?: string
@@ -86,9 +97,15 @@ export interface EventContent {
   }
   faq?: FaqItem[]
   _palette?: { primary: string; bg: string }
-  _font?: string
+  _theme?: string         // theme id (see lib/themes.ts)
+  _heroLayout?: 'centered' | 'full-bleed' | 'split' | 'illustrated'
+  _font?: string          // legacy: single font fallback
+  _displayFont?: string   // heading / display font (names, section titles)
+  _bodyFont?: string      // body / paragraph font
+  _section_layouts?: Record<string, string>  // sectionId → layoutVariantId
   _section_order?: string[]
   _hidden_sections?: string[]
+  _stickers?: PlacedSticker[]
   custom_sections?: Array<{ id: string; title: string; text?: string; images?: string[] }>
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { EVENT_TYPE_COLORS, type EventType } from '@/types'
+import { THEMES, type Theme } from '@/lib/themes'
 import {
   Heart, Sparkles, Star, House, Gift,
   ChevronLeft, ChevronRight, Loader2
@@ -174,6 +175,9 @@ export default function NewEventPage() {
   const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [creating, setCreating] = useState(false)
 
+  // Step 5
+  const [selectedTheme, setSelectedTheme] = useState<Theme>(THEMES[0])
+
   const title = getEventTitle(type, hostName, partnerName)
 
   // Generate suggestions when entering step 4
@@ -225,8 +229,15 @@ export default function NewEventPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const colors = EVENT_TYPE_COLORS[type]
     const defaultContent = getDefaultContent(type, hostName, partnerName)
+    const contentWithTheme = {
+      ...defaultContent,
+      _theme: selectedTheme.id,
+      _palette: { primary: selectedTheme.primary, bg: selectedTheme.bg },
+      _paletteKey: 'Custom',
+      _displayFont: selectedTheme.displayFont,
+      _bodyFont: selectedTheme.bodyFont,
+    }
 
     const { data: event, error } = await supabase
       .from('events')
@@ -239,10 +250,10 @@ export default function NewEventPage() {
         slug,
         date: dateUndecided ? null : (date || null),
         location: location || null,
-        accent_color: colors.accent,
-        primary_color: colors.primary,
+        accent_color: selectedTheme.bg,
+        primary_color: selectedTheme.primary,
         status: 'draft',
-        content: defaultContent,
+        content: contentWithTheme,
       })
       .select()
       .single()
@@ -272,6 +283,7 @@ export default function NewEventPage() {
   const step1Valid = !!type
   const step2Valid = hostName.trim().length > 0 && (type !== 'wedding' || partnerName.trim().length > 0)
   const step4Valid = slugStatus === 'available'
+  const step5Valid = !!selectedTheme
 
   return (
     <div
@@ -294,7 +306,7 @@ export default function NewEventPage() {
         )}
         {/* Step dots */}
         <div className="flex items-center gap-1.5">
-          {[1, 2, 3, 4].map(s => (
+          {[1, 2, 3, 4, 5].map(s => (
             <div
               key={s}
               className="rounded-full transition-all duration-300"
@@ -581,10 +593,82 @@ export default function NewEventPage() {
               <div className="flex justify-between">
                 <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
                 <button
-                  onClick={handleCreate}
-                  disabled={!step4Valid || creating}
-                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+                  onClick={() => step4Valid && goNext()}
+                  disabled={!step4Valid}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all"
                   style={{ background: step4Valid ? '#2C2B26' : '#E8E3D9', color: step4Valid ? 'white' : '#B5A98A' }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Theme */}
+          {step === 5 && (
+            <div>
+              <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Great+Vibes&family=Italiana&family=Josefin+Sans:wght@300;400;600&family=Playfair+Display:wght@400;500;600&family=DM+Serif+Display&family=Libre+Baskerville:wght@400;700&family=Raleway:wght@300;400;600&display=swap');`}</style>
+              <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
+                Choose your style.
+              </h1>
+              <p className="text-base mb-8" style={{ color: '#8B8670' }}>
+                Pick a vibe — you can change everything later.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-10">
+                {THEMES.map(theme => {
+                  const active = selectedTheme.id === theme.id
+                  return (
+                    <button
+                      key={theme.id}
+                      onClick={() => setSelectedTheme(theme)}
+                      className="text-left rounded-2xl overflow-hidden border-2 transition-all"
+                      style={{ borderColor: active ? '#2C2B26' : '#E8E3D9' }}
+                    >
+                      {/* Mini preview */}
+                      <div
+                        className="h-20 flex flex-col items-center justify-center px-3"
+                        style={{ background: theme.bg }}
+                      >
+                        <p
+                          className="text-base font-semibold leading-tight text-center"
+                          style={{ fontFamily: `'${theme.displayFont}', serif`, color: theme.primary }}
+                        >
+                          {title || 'Your Event'}
+                        </p>
+                        <p
+                          className="text-xs mt-1 opacity-50 text-center"
+                          style={{ fontFamily: `'${theme.bodyFont}', serif`, color: theme.primary }}
+                        >
+                          {theme.description}
+                        </p>
+                      </div>
+                      {/* Label */}
+                      <div
+                        className="px-3 py-2 flex items-center justify-between"
+                        style={{ background: active ? '#2C2B26' : '#FAFAF7' }}
+                      >
+                        <span className="text-xs font-semibold" style={{ color: active ? 'white' : '#2C2B26' }}>
+                          {theme.name}
+                        </span>
+                        {active && (
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'white' }}>
+                            <div className="w-2 h-2 rounded-full" style={{ background: '#2C2B26' }} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex justify-between">
+                <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
+                <button
+                  onClick={handleCreate}
+                  disabled={!step5Valid || creating}
+                  className="px-7 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+                  style={{ background: step5Valid ? '#2C2B26' : '#E8E3D9', color: step5Valid ? 'white' : '#B5A98A' }}
                 >
                   {creating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : 'Create your page'}
                 </button>
