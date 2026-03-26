@@ -263,12 +263,22 @@ export default function GuestsPage() {
   const [deletingSelected, setDeletingSelected] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const [error, setError] = useState<string | null>(null)
+
   const supabase = createClient()
 
   async function load() {
-    const { data } = await supabase.from('guests').select('*').eq('event_id', id).order('created_at', { ascending: false })
-    setGuests((data ?? []).map(g => ({ ...g, tags: g.tags ?? [] })) as Guest[])
-    setLoading(false)
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error: err } = await supabase.from('guests').select('*').eq('event_id', id).order('created_at', { ascending: false })
+      if (err) throw err
+      setGuests((data ?? []).map(g => ({ ...g, tags: g.tags ?? [] })) as Guest[])
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -805,7 +815,18 @@ export default function GuestsPage() {
       </div>
 
       {/* Guest table */}
-      {loading ? (
+      {error ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
+          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: '#2C2B26', color: '#FAFAF7' }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : loading ? (
         <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
           <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
             <table className="w-full text-sm" style={{ minWidth: 640 }}>

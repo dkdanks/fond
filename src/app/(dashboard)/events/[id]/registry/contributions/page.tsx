@@ -23,6 +23,23 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function trapFocus(e: React.KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== 'Tab') return
+  const focusable = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(el => !el.hasAttribute('disabled'))
+  if (focusable.length === 0) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus() }
+  } else {
+    if (document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
+}
+
 // ─── Thank-you Modal ─────────────────────────────────────────────────────────
 
 interface ThankModalProps {
@@ -55,6 +72,7 @@ function ThankModal({ contributions, onClose, onSend, primaryColor = '#2C2B26' }
       <div
         className="w-full max-w-md rounded-2xl p-6 relative"
         style={{ background: 'white', border: '1px solid #E8E3D9' }}
+        onKeyDown={trapFocus}
       >
         <button
           onClick={onClose}
@@ -100,6 +118,7 @@ function ThankModal({ contributions, onClose, onSend, primaryColor = '#2C2B26' }
             value={message}
             onChange={e => setMessage(e.target.value)}
             rows={4}
+            autoFocus
             className="w-full px-3.5 py-2.5 text-sm rounded-xl border outline-none resize-none"
             style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
           />
@@ -140,11 +159,13 @@ export default function ContributionsPage() {
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [pools, setPools] = useState<Pool[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterTab>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [thankModal, setThankModal] = useState<Contribution[] | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const thankTriggerRef = useRef<HTMLElement | null>(null)
 
   // Thanked state: use thanked_at from DB if available, else localStorage
   const [thankedIds, setThankedIds] = useState<Set<string>>(new Set())
@@ -152,31 +173,44 @@ export default function ContributionsPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: contribs }, { data: poolData }] = await Promise.all([
-      supabase.from('contributions').select('*').eq('event_id', id).order('created_at', { ascending: false }),
-      supabase.from('registry_pools').select('id, title').eq('event_id', id),
-    ])
+    setError(null)
+    try {
+      const [{ data: contribs, error: err1 }, { data: poolData, error: err2 }] = await Promise.all([
+        supabase.from('contributions').select('*').eq('event_id', id).order('created_at', { ascending: false }),
+        supabase.from('registry_pools').select('id, title').eq('event_id', id),
+      ])
+      if (err1) throw err1
+      if (err2) throw err2
 
-    const rows = (contribs ?? []) as Contribution[]
-    setContributions(rows)
-    setPools((poolData ?? []) as Pool[])
+      const rows = (contribs ?? []) as Contribution[]
+      setContributions(rows)
+      setPools((poolData ?? []) as Pool[])
 
-    // Build thanked set: prefer thanked_at column, fall back to localStorage
-    const dbThanked = new Set(
-      rows
-        .filter(c => (c as Contribution & { thanked_at?: string | null }).thanked_at)
-        .map(c => c.id)
-    )
-    const lsRaw = typeof window !== 'undefined' ? localStorage.getItem(lsKey) : null
-    const lsThanked: string[] = lsRaw ? JSON.parse(lsRaw) : []
-    const combined = new Set([...dbThanked, ...lsThanked])
-    setThankedIds(combined)
-
-    setLoading(false)
+      // Build thanked set: prefer thanked_at column, fall back to localStorage
+      const dbThanked = new Set(
+        rows
+          .filter(c => (c as Contribution & { thanked_at?: string | null }).thanked_at)
+          .map(c => c.id)
+      )
+      const lsRaw = typeof window !== 'undefined' ? localStorage.getItem(lsKey) : null
+      const lsThanked: string[] = lsRaw ? JSON.parse(lsRaw) : []
+      const combined = new Set([...dbThanked, ...lsThanked])
+      setThankedIds(combined)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!thankModal) {
+      thankTriggerRef.current?.focus()
+    }
+  }, [thankModal])
 
   // ─── Derived data ────────────────────────────────────────────────────────
 
@@ -315,6 +349,18 @@ export default function ContributionsPage() {
       </div>
 
       {/* Table */}
+      {error ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
+          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: '#2C2B26', color: '#FAFAF7' }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
       <div className="rounded-2xl border overflow-x-auto" style={{ background: 'white', borderColor: '#E8E3D9' }}>
         {loading ? (
           <table className="w-full text-sm" style={{ minWidth: 680 }}>
@@ -432,7 +478,10 @@ export default function ContributionsPage() {
                     <td className="pr-4 py-3.5 text-right">
                       {hoveredRow === c.id && !isThanked && (
                         <button
-                          onClick={() => setThankModal([c])}
+                          onClick={() => {
+                            thankTriggerRef.current = document.activeElement as HTMLElement
+                            setThankModal([c])
+                          }}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
                           style={{ background: '#F5F0E8', color: '#2C2B26' }}
                           onMouseEnter={e => (e.currentTarget.style.background = '#EDE8DE')}
@@ -449,6 +498,7 @@ export default function ContributionsPage() {
           </table>
         )}
       </div>
+      )}
 
       {/* Floating multi-select bar */}
       {selected.size > 0 && (
@@ -461,6 +511,7 @@ export default function ContributionsPage() {
           </span>
           <button
             onClick={() => {
+              thankTriggerRef.current = document.activeElement as HTMLElement
               const selectedContribs = contributions.filter(c => selected.has(c.id))
               setThankModal(selectedContribs)
             }}

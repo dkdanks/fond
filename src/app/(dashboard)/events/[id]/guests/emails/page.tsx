@@ -94,6 +94,7 @@ export default function GuestsEmailsPage() {
 
   const [guests, setGuests] = useState<Guest[]>([])
   const [event, setEvent] = useState<EventData | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [subject, setSubject] = useState("You're invited!")
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
@@ -101,32 +102,39 @@ export default function GuestsEmailsPage() {
   const [target, setTarget] = useState<'all' | 'uninvited' | 'pending'>('uninvited')
 
   const load = useCallback(async () => {
-    const [{ data: guestData }, { data: ev }, { data: profile }] = await Promise.all([
-      supabase.from('guests').select('*').eq('event_id', id).order('name'),
-      supabase.from('events').select('title, slug, date, location, content, primary_color, accent_color').eq('id', id).single(),
-      supabase.from('profiles').select('name').single(),
-    ])
-    setGuests(guestData ?? [])
-    if (ev) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const content = (ev.content ?? {}) as Record<string, any>
-      const palette = content._palette as Record<string, string> | undefined
-      const primaryColor = palette?.primary ?? ev.primary_color ?? '#2C2B26'
-      const bgColor = palette?.bg ?? ev.accent_color ?? '#F5F0E8'
-      const font = (content._font as string | undefined) ?? 'Inter'
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-      const eventData: EventData = {
-        title: ev.title ?? '',
-        slug: ev.slug ?? '',
-        date: ev.date ?? null,
-        location: ev.location ?? null,
-        primaryColor,
-        bgColor,
-        font,
-        hostName: (profile as { name?: string } | null)?.name ?? 'Your hosts',
+    setError(null)
+    try {
+      const [{ data: guestData, error: err1 }, { data: ev, error: err2 }, { data: profile }] = await Promise.all([
+        supabase.from('guests').select('*').eq('event_id', id).order('name'),
+        supabase.from('events').select('title, slug, date, location, content, primary_color, accent_color').eq('id', id).single(),
+        supabase.from('profiles').select('name').single(),
+      ])
+      if (err1) throw err1
+      if (err2) throw err2
+      setGuests(guestData ?? [])
+      if (ev) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const content = (ev.content ?? {}) as Record<string, any>
+        const palette = content._palette as Record<string, string> | undefined
+        const primaryColor = palette?.primary ?? ev.primary_color ?? '#2C2B26'
+        const bgColor = palette?.bg ?? ev.accent_color ?? '#F5F0E8'
+        const font = (content._font as string | undefined) ?? 'Inter'
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+        const eventData: EventData = {
+          title: ev.title ?? '',
+          slug: ev.slug ?? '',
+          date: ev.date ?? null,
+          location: ev.location ?? null,
+          primaryColor,
+          bgColor,
+          font,
+          hostName: (profile as { name?: string } | null)?.name ?? 'Your hosts',
+        }
+        setEvent(eventData)
+        setBody(`Hi [Guest Name],\n\nYou're invited to ${ev.title}! We'd love to have you there.\n\nPlease RSVP at the link below:\n${baseUrl}/e/${ev.slug}\n\nWith love`)
       }
-      setEvent(eventData)
-      setBody(`Hi [Guest Name],\n\nYou're invited to ${ev.title}! We'd love to have you there.\n\nPlease RSVP at the link below:\n${baseUrl}/e/${ev.slug}\n\nWith love`)
+    } catch {
+      setError('Something went wrong. Please try again.')
     }
   }, [id, supabase])
 
@@ -192,6 +200,19 @@ export default function GuestsEmailsPage() {
         ))}
       </div>
 
+      {error ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
+          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: '#2C2B26', color: '#FAFAF7' }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+      <>
       {/* Two-column layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
@@ -325,6 +346,8 @@ export default function GuestsEmailsPage() {
             ))}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   )

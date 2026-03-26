@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Phone } from 'lucide-react'
 
@@ -8,15 +8,46 @@ interface HelpModalProps {
   onClose: () => void
 }
 
+function trapFocus(e: React.KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== 'Tab') return
+  const focusable = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(el => !el.hasAttribute('disabled'))
+  if (focusable.length === 0) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus() }
+  } else {
+    if (document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
+}
+
 export function HelpModal({ open, onClose }: HelpModalProps) {
   const [mounted, setMounted] = useState(false)
+  const triggerRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement
+      setTimeout(() => { closeButtonRef.current?.focus() }, 50)
+    } else {
+      triggerRef.current?.focus()
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [open, onClose])
+
   if (!mounted || !open) return null
 
   return createPortal(
@@ -28,8 +59,10 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
       <div
         className="max-w-md w-full mx-4 rounded-3xl p-8 shadow-2xl relative"
         style={{ background: 'white' }}
+        onKeyDown={trapFocus}
       >
         <button
+          ref={closeButtonRef}
           onClick={onClose}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-lg font-light leading-none transition-colors"
           style={{ color: '#B5A98A' }}

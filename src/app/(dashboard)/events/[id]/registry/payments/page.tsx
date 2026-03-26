@@ -53,6 +53,7 @@ export default function RegistryPaymentsPage() {
 
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [payout, setPayout] = useState<PayoutDetails>({ bsb: '', account_number: '', account_name: '' })
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -61,14 +62,21 @@ export default function RegistryPaymentsPage() {
   const [showPayoutForm, setShowPayoutForm] = useState(false)
 
   const load = useCallback(async () => {
-    const [{ data: contribs }, { data: ev }] = await Promise.all([
-      supabase.from('contributions').select('*').eq('event_id', id).eq('status', 'completed'),
-      supabase.from('events').select('content').eq('id', id).single(),
-    ])
-    setContributions(contribs ?? [])
-    const content = ev?.content as Record<string, unknown> | null
-    if (content?.payout_details) {
-      setPayout(content.payout_details as PayoutDetails)
+    setError(null)
+    try {
+      const [{ data: contribs, error: err1 }, { data: ev, error: err2 }] = await Promise.all([
+        supabase.from('contributions').select('*').eq('event_id', id).eq('status', 'completed'),
+        supabase.from('events').select('content').eq('id', id).single(),
+      ])
+      if (err1) throw err1
+      if (err2) throw err2
+      setContributions(contribs ?? [])
+      const content = ev?.content as Record<string, unknown> | null
+      if (content?.payout_details) {
+        setPayout(content.payout_details as PayoutDetails)
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
     }
   }, [id, supabase])
 
@@ -76,10 +84,18 @@ export default function RegistryPaymentsPage() {
 
   async function savePayout() {
     setSaving(true)
-    const { data: ev } = await supabase.from('events').select('content').eq('id', id).single()
-    const existing = (ev?.content as Record<string, unknown>) ?? {}
-    await supabase.from('events').update({ content: { ...existing, payout_details: payout } } as Record<string, unknown>).eq('id', id)
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
+    try {
+      const { data: ev, error: fetchErr } = await supabase.from('events').select('content').eq('id', id).single()
+      if (fetchErr) throw fetchErr
+      const existing = (ev?.content as Record<string, unknown>) ?? {}
+      const { error: updateErr } = await supabase.from('events').update({ content: { ...existing, payout_details: payout } } as Record<string, unknown>).eq('id', id)
+      if (updateErr) throw updateErr
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      console.error('Failed to save payout details', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function requestPayout() {
@@ -123,6 +139,19 @@ export default function RegistryPaymentsPage() {
           </div>
         ))}
       </div>
+
+      {error && (
+        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
+          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: '#2C2B26', color: '#FAFAF7' }}
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {/* How it works */}
       <div className="rounded-2xl border p-6 mb-6" style={{ background: 'white', borderColor: '#E8E3D9' }}>
