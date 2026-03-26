@@ -146,7 +146,7 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
         <p className="text-sm mb-10" style={{ opacity: 0.5 }}>Let the hosts know your plans.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-7">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ opacity: 0.6 }}>Your name *</label>
               <input

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   House, LayoutTemplate, Gift, Users,
-  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut
+  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut, Menu, X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { HelpModal } from '@/components/app/help-modal'
@@ -64,6 +64,7 @@ const navStructure = (eventId: string): NavItem[] => [
 
 export function AppSidebar({ eventId, userEmail }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -75,18 +76,11 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
     router.refresh()
   }
 
-  return (
-    <aside
-      className="flex flex-col shrink-0 h-screen sticky top-0 border-r transition-all duration-300 ease-in-out"
-      style={{
-        width: collapsed ? 56 : 240,
-        background: '#FAFAF7',
-        borderColor: '#E8E3D9',
-      }}
-    >
-      {/* Logo + collapse toggle */}
+  const navContent = (
+    <>
+      {/* Logo + close (mobile) / collapse (desktop) */}
       <div
-        className="flex items-center h-14 px-3 border-b"
+        className="flex items-center h-14 px-3 border-b shrink-0"
         style={{ borderColor: '#E8E3D9' }}
       >
         {!collapsed && (
@@ -98,9 +92,21 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           </span>
         )}
         {collapsed && <div className="flex-1" />}
+
+        {/* Mobile: close drawer */}
+        <button
+          className="md:hidden w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/5"
+          style={{ color: '#8B8670' }}
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close menu"
+        >
+          <X size={14} />
+        </button>
+
+        {/* Desktop: collapse toggle */}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/5"
+          className="hidden md:flex w-7 h-7 rounded-md items-center justify-center transition-colors hover:bg-black/5"
           style={{ color: '#8B8670' }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -112,8 +118,6 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
       <nav className="flex-1 py-3 px-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
         {navStructure(eventId).map(({ href, icon: Icon, label, sub }) => {
           const sectionActive = pathname === href || pathname.startsWith(href + '/')
-          // Registry sub-items: /registry and /registry/settings are both under /registry
-          // so check more specifically
           const parentActive = sectionActive
 
           return (
@@ -129,6 +133,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                   color: parentActive && sub.length === 0 ? '#FAFAF7' : parentActive ? '#2C2B26' : '#8B8670',
                   minHeight: 36,
                 }}
+                onClick={() => setMobileOpen(false)}
                 onMouseEnter={(e) => {
                   if (!parentActive) (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)'
                 }}
@@ -145,11 +150,10 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                 {!collapsed && <span className="truncate">{label}</span>}
               </Link>
 
-              {/* Sub-items — only when not collapsed and section is active */}
+              {/* Sub-items */}
               {!collapsed && parentActive && sub.length > 0 && (
                 <div className="mt-0.5 ml-2 pl-5 flex flex-col gap-0.5 border-l" style={{ borderColor: '#E8E3D9' }}>
                   {sub.map(({ href: subHref, label: subLabel }) => {
-                    // Exact match for sub-items (e.g. /guests vs /guests/emails)
                     const subActive = pathname === subHref
                     return (
                       <Link
@@ -160,6 +164,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                           background: subActive ? '#2C2B26' : 'transparent',
                           color: subActive ? '#FAFAF7' : '#8B8670',
                         }}
+                        onClick={() => setMobileOpen(false)}
                         onMouseEnter={(e) => {
                           if (!subActive) (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)'
                         }}
@@ -180,10 +185,9 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
 
       {/* Bottom actions */}
       <div
-        className="py-3 px-2 border-t flex flex-col gap-0.5"
+        className="py-3 px-2 border-t flex flex-col gap-0.5 shrink-0"
         style={{ borderColor: '#E8E3D9' }}
       >
-        {/* Account */}
         <div
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg"
           style={{ minHeight: 36 }}
@@ -196,7 +200,6 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           )}
         </div>
 
-        {/* Help */}
         <button
           title={collapsed ? 'Help' : undefined}
           onClick={() => setHelpOpen(true)}
@@ -210,12 +213,12 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
         </button>
         <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
-        {/* Settings */}
         <Link
           href={`/events/${eventId}/settings`}
           title={collapsed ? 'Settings' : undefined}
           className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm transition-colors"
           style={{ color: '#B5A98A', minHeight: 36 }}
+          onClick={() => setMobileOpen(false)}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(44,43,38,0.06)' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
         >
@@ -223,7 +226,6 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           {!collapsed && <span>Settings</span>}
         </Link>
 
-        {/* Sign out */}
         <button
           onClick={handleSignOut}
           title={collapsed ? 'Sign out' : undefined}
@@ -236,6 +238,53 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
           {!collapsed && <span>Sign out</span>}
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* ── Mobile hamburger trigger (fixed, only visible when drawer closed) ── */}
+      <button
+        className="md:hidden fixed top-3 left-3 z-40 w-9 h-9 rounded-xl flex items-center justify-center border transition-colors"
+        style={{ background: '#FAFAF7', borderColor: '#E8E3D9', color: '#2C2B26' }}
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open menu"
+      >
+        <Menu size={16} />
+      </button>
+
+      {/* ── Mobile backdrop ────────────────────────────────────────────────────── */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* ── Desktop sidebar (sticky, part of flex layout) ─────────────────────── */}
+      <aside
+        className="hidden md:flex flex-col shrink-0 h-screen sticky top-0 border-r transition-all duration-300 ease-in-out"
+        style={{
+          width: collapsed ? 56 : 240,
+          background: '#FAFAF7',
+          borderColor: '#E8E3D9',
+        }}
+      >
+        {navContent}
+      </aside>
+
+      {/* ── Mobile drawer (fixed overlay, slides in from left) ───────────────── */}
+      <aside
+        className={`md:hidden flex flex-col fixed inset-y-0 left-0 z-50 border-r transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{
+          width: 260,
+          background: '#FAFAF7',
+          borderColor: '#E8E3D9',
+        }}
+      >
+        {navContent}
+      </aside>
+    </>
   )
 }

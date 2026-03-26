@@ -344,9 +344,9 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
         return (
           <>
             {/* Hero */}
-            <div className="px-8 py-16 text-center border-b" style={{ borderColor: `${primaryColor}12` }}>
+            <div className="px-4 py-10 md:px-8 md:py-16 text-center border-b" style={{ borderColor: `${primaryColor}12` }}>
               <p className="text-xs font-semibold uppercase tracking-widest mb-4 opacity-35" style={{ color: primaryColor }}>Registry</p>
-              <h1 className="text-4xl font-semibold mb-3" style={{ color: primaryColor, letterSpacing: '-0.03em' }}>
+              <h1 className="text-3xl md:text-4xl font-semibold mb-3" style={{ color: primaryColor, letterSpacing: '-0.03em' }}>
                 {eventTitle}
               </h1>
               <p className="text-sm opacity-50" style={{ color: primaryColor }}>
@@ -355,7 +355,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
             </div>
 
             {/* Grid */}
-            <div className="px-6 md:px-12 py-10 max-w-6xl mx-auto">
+            <div className="px-4 md:px-12 py-8 md:py-10 max-w-6xl mx-auto">
               {/* "Give a general gift" banner */}
               <button
                 onClick={() => { setSelectedFund(null); setStep('details') }}
@@ -378,7 +378,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
                       {groupName}
                     </h2>
                   )}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {groupFunds.map(fund => {
                       const raised = progress[fund.id] ?? 0
                       const pct = fund.target_amount ? Math.min(Math.round((raised / fund.target_amount) * 100), 100) : null
@@ -416,7 +416,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
             {/* Amount */}
             <div>
               <label className="text-sm font-medium block mb-2.5" style={{ color: primaryColor }}>Choose an amount</label>
-              <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {QUICK_AMOUNTS.map(amt => (
                   <button
                     key={amt}

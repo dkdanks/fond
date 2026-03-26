@@ -140,7 +140,7 @@ export default async function PublicEventPage({
       case 'story':
         if (!hasStory) return null
         return (
-          <section key="story" className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="story" className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-8 opacity-40 text-center">Our Story</p>
             <div className="max-w-2xl mx-auto">
               {c.our_story?.introduction && (
@@ -157,7 +157,7 @@ export default async function PublicEventPage({
       case 'schedule':
         if (!hasSchedule) return null
         return (
-          <section key="schedule" className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="schedule" className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-10 opacity-40 text-center">Schedule</p>
             <div className="max-w-2xl mx-auto grid gap-8">
               {(c.schedule ?? []).map(item => (
@@ -180,12 +180,12 @@ export default async function PublicEventPage({
       case 'wedding_party':
         if (!hasParty) return null
         return (
-          <section key="wedding_party" className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="wedding_party" className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-4 opacity-40 text-center">Wedding Party</p>
             {c.wedding_party?.introduction && (
               <p className="text-center text-base opacity-60 mb-10 max-w-lg mx-auto">{c.wedding_party.introduction}</p>
             )}
-            <div className="grid grid-cols-4 gap-6 max-w-3xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
               {(c.wedding_party?.members ?? []).map(m => (
                 <div key={m.id} className="text-center">
                   <div
@@ -207,7 +207,7 @@ export default async function PublicEventPage({
       case 'attire':
         if (!hasAttire) return null
         return (
-          <section key="attire" className="px-8 py-16 border-t text-center" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="attire" className="px-4 py-10 md:px-8 md:py-16 border-t text-center" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-6 opacity-40">Attire</p>
             {c.attire?.dress_code && <p className="text-2xl font-semibold mb-3">{c.attire.dress_code}</p>}
             {c.attire?.notes && <p className="text-sm opacity-60 max-w-md mx-auto">{c.attire.notes}</p>}
@@ -217,14 +217,14 @@ export default async function PublicEventPage({
       case 'travel':
         if (!hasTravel) return null
         return (
-          <section key="travel" className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="travel" className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-8 opacity-40 text-center">Getting There</p>
             <div className="max-w-2xl mx-auto">
               {c.travel?.notes && (
                 <p className="text-base opacity-70 mb-8 leading-relaxed">{c.travel.notes}</p>
               )}
               {c.travel?.cards && c.travel.cards.length > 0 && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {c.travel.cards.map(card => (
                     <div key={card.id} className="rounded-2xl p-5 border" style={{ borderColor: `${primaryColor}15` }}>
                       <p className="text-xs uppercase tracking-wide opacity-40 mb-2">
@@ -257,7 +257,7 @@ export default async function PublicEventPage({
         const buttonText = registryContent?.button_text || 'View registry'
         const note = registryContent?.note
         return (
-          <section key="registry" className="px-8 py-16 text-center border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="registry" className="px-4 py-10 md:px-8 md:py-16 text-center border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-6 opacity-40">Registry</p>
             {note && (
               <p className="text-base opacity-70 max-w-xl mx-auto mb-8 leading-relaxed">{note}</p>
@@ -276,7 +276,7 @@ export default async function PublicEventPage({
       case 'faq':
         if (!hasFaq) return null
         return (
-          <section key="faq" className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+          <section key="faq" className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
             <p className="text-xs font-semibold uppercase tracking-widest mb-10 opacity-40 text-center">FAQ</p>
             <div className="max-w-2xl mx-auto flex flex-col gap-0">
               {(c.faq ?? []).map(item => (
@@ -300,7 +300,7 @@ export default async function PublicEventPage({
           const cs = (content as any).custom_sections?.find((s: any) => s.id === csId)
           if (!cs) return null
           return (
-            <section key={key} className="px-8 py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
+            <section key={key} className="px-4 py-10 md:px-8 md:py-16 border-t" style={{ borderColor: `${primaryColor}15` }}>
               <p className="text-xs font-semibold uppercase tracking-widest mb-8 opacity-40 text-center">{cs.title}</p>
               <div className="max-w-2xl mx-auto">
                 {cs.text && <p className="text-base leading-relaxed opacity-70">{cs.text}</p>}
@@ -330,8 +330,8 @@ export default async function PublicEventPage({
 
       {/* Hero / Welcome */}
       {!hiddenSections.has('welcome') && (
-        <section className="px-8 py-20 text-center" style={{ background: bgColor }}>
-          <h1 className="text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em' }}>{event.title}</h1>
+        <section className="px-4 py-12 md:px-8 md:py-20 text-center" style={{ background: bgColor }}>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-3" style={{ letterSpacing: '-0.02em' }}>{event.title}</h1>
           {(event.date || event.location) && (
             <p className="text-sm mb-8 opacity-60">
               {event.date && formatDate(event.date)}
