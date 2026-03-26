@@ -82,6 +82,12 @@ export default function RegistryPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [settingsOpen, setSettingsOpen] = useState(true)
 
+  useEffect(() => {
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape' && settingsOpen) setSettingsOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [settingsOpen])
+
   // Add item form
   const [showAddForm, setShowAddForm] = useState(false)
   const [addingGroup, setAddingGroup] = useState<string | null>(null) // group name to pre-fill

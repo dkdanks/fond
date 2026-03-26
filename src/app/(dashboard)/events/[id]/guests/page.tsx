@@ -9,6 +9,7 @@ import {
   AlertCircle, CheckCircle2, Mail, Users, X, Search,
   Download, Edit2, Tag, Phone, ChevronUp, MessageSquare
 } from 'lucide-react'
+import { SkeletonRow } from '@/components/app/skeleton'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const HEADER_RE = /^(name|email|guest|first.?name|last.?name)/i
@@ -260,6 +261,7 @@ export default function GuestsPage() {
   // Multi-select
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deletingSelected, setDeletingSelected] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const supabase = createClient()
 
@@ -302,7 +304,6 @@ export default function GuestsPage() {
   }
 
   async function deleteSelected() {
-    if (!confirm(`Remove ${selected.size} guest${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return
     setDeletingSelected(true)
     const ids = Array.from(selected)
     await supabase.from('guests').delete().in('id', ids)
@@ -805,7 +806,26 @@ export default function GuestsPage() {
 
       {/* Guest table */}
       {loading ? (
-        <div className="py-20 text-center text-sm" style={{ color: '#B5A98A' }}>Loading…</div>
+        <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+            <table className="w-full text-sm" style={{ minWidth: 640 }}>
+              <thead>
+                <tr className="sticky top-0 z-10" style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
+                  <th className="px-4 py-3 w-8" />
+                  <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: '#8B8670' }}>Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: '#8B8670' }}>Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold hidden md:table-cell" style={{ color: '#8B8670' }}>Phone</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold hidden lg:table-cell" style={{ color: '#8B8670' }}>Tags</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold" style={{ color: '#8B8670' }}>RSVP</th>
+                  <th className="px-4 py-3 w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={5} />)}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="py-20 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: '#F0EDE8' }}>
@@ -814,16 +834,27 @@ export default function GuestsPage() {
           <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>
             {guests.length === 0 ? 'No guests yet' : 'No guests match your filter'}
           </p>
-          <p className="text-xs" style={{ color: '#8B8670' }}>
-            {guests.length === 0 ? 'Add your first guest using the button above.' : 'Try adjusting your search or filter.'}
-          </p>
+          {guests.length === 0 ? (
+            <>
+              <p className="text-xs mb-4" style={{ color: '#8B8670' }}>Start building your guest list.</p>
+              <button
+                onClick={() => { setAddMode('single'); setAddDropdown(false) }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
+                style={{ background: '#2C2B26', color: 'white' }}
+              >
+                <Plus size={14} /> Add first guest
+              </button>
+            </>
+          ) : (
+            <p className="text-xs" style={{ color: '#8B8670' }}>Try adjusting your search or filter.</p>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
           <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ minWidth: 640 }}>
             <thead>
-              <tr style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
+              <tr className="sticky top-0 z-10" style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
                 <th className="px-4 py-3 w-8">
                   <div
                     className="w-4 h-4 rounded border flex items-center justify-center cursor-pointer"
@@ -1099,16 +1130,38 @@ export default function GuestsPage() {
       >
         <span className="text-sm font-medium" style={{ color: '#2C2B26' }}>{selected.size} selected</span>
         <div className="w-px h-4 shrink-0" style={{ background: '#E8E3D9' }} />
-        <button
-          onClick={deleteSelected}
-          disabled={deletingSelected}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-          style={{ borderColor: '#EF4444', color: '#EF4444', background: 'white' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
-        >
-          <Trash2 size={12} /> {deletingSelected ? 'Deleting…' : 'Delete'}
-        </button>
+        {confirmDelete ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm" style={{ color: '#EF4444' }}>
+              Delete {selected.size} guest{selected.size !== 1 ? 's' : ''}?
+            </span>
+            <button
+              onClick={async () => { setConfirmDelete(false); await deleteSelected() }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ background: '#EF4444', color: 'white' }}
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{ color: '#8B8670' }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={deletingSelected}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+            style={{ borderColor: '#EF4444', color: '#EF4444', background: 'white' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white' }}
+          >
+            <Trash2 size={12} /> {deletingSelected ? 'Deleting…' : 'Delete'}
+          </button>
+        )}
         <button
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
           style={{ borderColor: '#E8E3D9', color: '#2C2B26', background: 'white' }}
@@ -1121,7 +1174,7 @@ export default function GuestsPage() {
         <button
           className="flex items-center gap-1 text-xs transition-colors"
           style={{ color: '#B5A98A' }}
-          onClick={() => setSelected(new Set())}
+          onClick={() => { setSelected(new Set()); setConfirmDelete(false) }}
         >
           <X size={13} />
         </button>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -67,6 +67,13 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const pathname = usePathname()
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') setMobileOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileOpen])
   const router = useRouter()
 
   async function handleSignOut() {

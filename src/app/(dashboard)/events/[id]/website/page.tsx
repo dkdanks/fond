@@ -601,6 +601,13 @@ export default function WebsiteEditorPage() {
   const [showAddSection, setShowAddSection] = useState(false)
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
 
+  useEffect(() => {
+    if (!mobileEditorOpen) return
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') setMobileEditorOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileEditorOpen])
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingPatch = useRef<Record<string, unknown>>({})
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})

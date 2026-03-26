@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, type Contribution } from '@/types'
 import { Mail, Check, X, Search, CheckCircle2, Clock } from 'lucide-react'
+import { useToast } from '@/components/app/toast-provider'
+import { SkeletonRow } from '@/components/app/skeleton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,6 +135,7 @@ function ThankModal({ contributions, onClose, onSend, primaryColor = '#2C2B26' }
 export default function ContributionsPage() {
   const { id } = useParams<{ id: string }>()
   const supabase = createClient()
+  const toast = useToast()
 
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [pools, setPools] = useState<Pool[]>([])
@@ -238,6 +241,7 @@ export default function ContributionsPage() {
       ids.forEach(id => next.delete(id))
       return next
     })
+    toast.success(`Marked ${ids.length} as thanked`)
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -313,9 +317,11 @@ export default function ContributionsPage() {
       {/* Table */}
       <div className="rounded-2xl border overflow-x-auto" style={{ background: 'white', borderColor: '#E8E3D9' }}>
         {loading ? (
-          <div className="py-20 text-center">
-            <p className="text-sm" style={{ color: '#B5A98A' }}>Loading contributions…</p>
-          </div>
+          <table className="w-full text-sm" style={{ minWidth: 680 }}>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={6} />)}
+            </tbody>
+          </table>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#F5F0E8' }}>
@@ -329,7 +335,7 @@ export default function ContributionsPage() {
         ) : (
           <table className="w-full text-sm" style={{ minWidth: 680 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #F0EDE8' }}>
+              <tr className="sticky top-0 z-10" style={{ borderBottom: '1px solid #F0EDE8', background: 'white' }}>
                 <th className="w-10 pl-5 py-3 text-left">
                   <input
                     type="checkbox"

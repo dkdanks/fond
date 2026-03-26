@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Send, Check, Loader2 } from 'lucide-react'
+import { useToast } from '@/components/app/toast-provider'
 
 interface Guest {
   id: string
@@ -89,6 +90,7 @@ function buildPreviewHtml(body: string, event: EventData) {
 export default function GuestsEmailsPage() {
   const { id } = useParams<{ id: string }>()
   const supabase = createClient()
+  const toast = useToast()
 
   const [guests, setGuests] = useState<Guest[]>([])
   const [event, setEvent] = useState<EventData | null>(null)
@@ -154,8 +156,13 @@ export default function GuestsEmailsPage() {
       if (res.ok) {
         setSent(true)
         setTimeout(() => setSent(false), 4000)
+        toast.success(`Sent to ${recipientCount} guest${recipientCount !== 1 ? 's' : ''}`)
         load()
+      } else {
+        toast.error('Failed to send emails. Please try again.')
       }
+    } catch {
+      toast.error('Failed to send emails. Please try again.')
     } finally {
       setSending(false)
     }

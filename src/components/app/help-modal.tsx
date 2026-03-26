@@ -11,6 +11,12 @@ interface HelpModalProps {
 export function HelpModal({ open, onClose }: HelpModalProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    if (!open) return
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
   if (!mounted || !open) return null
 
   return createPortal(
