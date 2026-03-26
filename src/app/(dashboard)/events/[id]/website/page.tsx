@@ -599,6 +599,7 @@ export default function WebsiteEditorPage() {
   const [dragOver, setDragOver] = useState<string | null>(null)
   const [addingSectionTitle, setAddingSectionTitle] = useState('')
   const [showAddSection, setShowAddSection] = useState(false)
+  const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingPatch = useRef<Record<string, unknown>>({})
@@ -894,7 +895,7 @@ export default function WebsiteEditorPage() {
           style={{ background: 'white', borderColor: '#E8E3D9' }}
         >
           {/* Viewport toggle */}
-          <div className="flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#F5F0E8' }}>
+          <div className="hidden md:flex items-center gap-1 p-0.5 rounded-xl" style={{ background: '#F5F0E8' }}>
             {(['desktop', 'mobile'] as const).map(v => (
               <button
                 key={v}
@@ -913,6 +914,13 @@ export default function WebsiteEditorPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+              style={{ background: '#2C2B26', color: 'white' }}
+              onClick={() => setMobileEditorOpen(true)}
+            >
+              Edit
+            </button>
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all"
@@ -972,9 +980,23 @@ export default function WebsiteEditorPage() {
 
       {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
       <div
-        className="flex flex-col h-full border-l overflow-hidden shrink-0"
-        style={{ width: 300, background: 'white', borderColor: '#E8E3D9' }}
+        className={[
+          "flex flex-col border-l overflow-hidden",
+          "md:relative md:shrink-0 md:h-full md:w-[300px] md:rounded-none",
+          "fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[82vh] md:max-h-none",
+          "transition-transform duration-300 ease-in-out",
+          mobileEditorOpen ? "translate-y-0" : "translate-y-full md:translate-y-0",
+        ].join(' ')}
+        style={{ background: 'white', borderColor: '#E8E3D9' }}
       >
+        {/* Mobile drag handle */}
+        <div
+          className="md:hidden flex justify-center pt-3 pb-1 shrink-0 cursor-pointer"
+          onClick={() => setMobileEditorOpen(false)}
+        >
+          <div className="w-10 h-1 rounded-full" style={{ background: '#E8E3D9' }} />
+        </div>
+
         {/* Header */}
         <div className="shrink-0 px-4 pt-4 pb-0">
           <div className="flex items-center justify-between mb-3">
@@ -1906,6 +1928,15 @@ export default function WebsiteEditorPage() {
           )}
         </div>
       </div>
+
+      {/* ── MOBILE BACKDROP ─────────────────────────────────────────────── */}
+      {mobileEditorOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40"
+          style={{ background: 'rgba(0,0,0,0.3)' }}
+          onClick={() => setMobileEditorOpen(false)}
+        />
+      )}
 
       {/* ── SHARE MODAL ─────────────────────────────────────────────────── */}
       {showShare && (
