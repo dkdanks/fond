@@ -11,6 +11,9 @@ export function StickerImage({ src, color, className, style }: Props) {
       className={className}
       style={{
         ...style,
+        display: 'block',
+        width: style?.width ?? '100%',
+        aspectRatio: '1 / 1',
         lineHeight: 0,
         backgroundColor: color,
         maskImage: `url("${src}")`,

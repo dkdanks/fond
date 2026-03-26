@@ -9,7 +9,7 @@ export function StickerOverlay({ stickers }: Props) {
   if (stickers.length === 0) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+    <div className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 10 }}>
       {stickers.map(s => (
         <StickerImage
           key={s.id}

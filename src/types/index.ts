@@ -53,6 +53,7 @@ export interface TravelCard {
 export interface PlacedSticker {
   id: string        // unique instance id
   src: string       // path e.g. '/stickers/florals/rose.svg'
+  sectionId?: string // section key the sticker is anchored to; absent means legacy page-wide sticker
   x: number         // % of preview width  (0–100)
   y: number         // % of preview height (0–100)
   width: number     // % of preview width
@@ -103,6 +104,7 @@ export interface EventContent {
   _displayFont?: string   // heading / display font (names, section titles)
   _bodyFont?: string      // body / paragraph font
   _section_layouts?: Record<string, string>  // sectionId → layoutVariantId
+  _section_spacing?: Record<string, number>  // sectionId → extra bottom spacing in px
   _section_order?: string[]
   _hidden_sections?: string[]
   _stickers?: PlacedSticker[]

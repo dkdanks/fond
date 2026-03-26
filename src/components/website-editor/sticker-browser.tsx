@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { X, Search } from 'lucide-react'
-import { STICKER_CATEGORIES, STICKERS, stickersByCategory, type StickerDef } from '@/lib/stickers'
+import { stickersByCategory, type StickerCatalog, type StickerDef } from '@/lib/stickers'
 import { StickerImage } from './sticker-image'
 
 interface Props {
@@ -11,8 +11,11 @@ interface Props {
 }
 
 export function StickerBrowser({ onAdd, onClose }: Props) {
-  const [activeCategory, setActiveCategory] = useState(STICKER_CATEGORIES[0].id)
+  const [catalog, setCatalog] = useState<StickerCatalog>({ categories: [], stickers: [] })
+  const [activeCategory, setActiveCategory] = useState('')
   const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -28,9 +31,44 @@ export function StickerBrowser({ onAdd, onClose }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadCatalog() {
+      try {
+        setLoading(true)
+        setLoadError(null)
+        const response = await fetch('/api/stickers', { cache: 'no-store' })
+        if (!response.ok) throw new Error('Failed to load stickers')
+        const nextCatalog = (await response.json()) as StickerCatalog
+        if (cancelled) return
+        setCatalog(nextCatalog)
+        setActiveCategory(current =>
+          current && nextCatalog.categories.some(category => category.id === current)
+            ? current
+            : (nextCatalog.categories[0]?.id ?? '')
+        )
+      } catch {
+        if (!cancelled) {
+          setLoadError('Could not load stickers right now.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadCatalog()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const visibleStickers = query.trim()
-    ? STICKERS.filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
-    : stickersByCategory(activeCategory)
+    ? catalog.stickers.filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+    : stickersByCategory(catalog.stickers, activeCategory)
 
   function handleAdd(s: StickerDef) {
     onAdd(s)
@@ -97,7 +135,7 @@ export function StickerBrowser({ onAdd, onClose }: Props) {
         {/* Category tabs — hidden during search */}
         {!query && (
           <div className="flex gap-1 px-6 pb-3 shrink-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            {STICKER_CATEGORIES.map(cat => (
+            {catalog.categories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
@@ -116,9 +154,19 @@ export function StickerBrowser({ onAdd, onClose }: Props) {
 
         {/* Sticker grid */}
         <div className="overflow-y-auto px-6 pb-8 flex-1" style={{ scrollbarWidth: 'none' }}>
-          {visibleStickers.length === 0 ? (
+          {loading ? (
             <div className="py-16 text-center">
-              <p className="text-sm" style={{ color: '#B5A98A' }}>No stickers found</p>
+              <p className="text-sm" style={{ color: '#B5A98A' }}>Loading stickers…</p>
+            </div>
+          ) : loadError ? (
+            <div className="py-16 text-center">
+              <p className="text-sm" style={{ color: '#B5A98A' }}>{loadError}</p>
+            </div>
+          ) : visibleStickers.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-sm" style={{ color: '#B5A98A' }}>
+                {catalog.categories.length === 0 ? 'No sticker folders found' : 'No stickers found'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-4 gap-3">

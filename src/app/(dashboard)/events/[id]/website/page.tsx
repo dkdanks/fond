@@ -13,10 +13,14 @@ import type {
   WeddingPartyMember, TravelCard, PlacedSticker
 } from '@/types'
 import { resolveFontFamily } from '@/lib/font-family'
+import { getLegacyPageStickers, getSectionStickers, mergeSectionStickers } from '@/lib/stickers'
 import { formatDate } from '@/lib/utils'
 import { THEMES, getThemeById, type Theme } from '@/lib/themes'
+import { ColorPickerPopover } from '@/components/ui/color-picker-popover'
+import { EventPage } from '@/components/event/event-page'
 import { StickerBrowser } from '@/components/website-editor/sticker-browser'
 import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
+import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
 import type { StickerDef } from '@/lib/stickers'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -254,7 +258,83 @@ interface PreviewProps {
   sectionLayouts: Record<string, string>
   hiddenSections: string[]
   sectionOrder: string[]
+  sectionSpacing: Record<string, number>
+  stickers: PlacedSticker[]
+  activeStickerSection: string
+  onSectionStickersChange: (sectionKey: string, nextStickers: PlacedSticker[]) => void
   onSectionClick: (s: string) => void
+  onSectionSpacingChange?: (sectionKey: string, spacing: number) => void
+  sectionLayerRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>
+}
+
+const MAX_SECTION_SPACING = 240
+
+function SectionSpacingHandle({
+  sectionKey,
+  value,
+  primaryColor,
+  onChange,
+}: {
+  sectionKey: string
+  value: number
+  primaryColor: string
+  onChange?: (sectionKey: string, spacing: number) => void
+}) {
+  const startY = useRef(0)
+  const startValue = useRef(0)
+
+  if (!onChange) return null
+  const applyChange = onChange
+
+  function onPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    startY.current = event.clientY
+    startValue.current = value
+
+    const onMove = (nextEvent: PointerEvent) => {
+      const delta = nextEvent.clientY - startY.current
+      const nextValue = Math.max(0, Math.min(MAX_SECTION_SPACING, startValue.current + delta))
+      applyChange(sectionKey, Math.round(nextValue))
+    }
+
+    const onUp = () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+  }
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-10 flex justify-center translate-y-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+      <button
+        type="button"
+        onClick={event => event.stopPropagation()}
+        onPointerDown={onPointerDown}
+        className="rounded-full transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          border: `1px solid ${primaryColor}18`,
+          boxShadow: value > 0 ? '0 14px 32px rgba(44,43,38,0.12)' : '0 10px 22px rgba(44,43,38,0.08)',
+          backdropFilter: 'blur(14px)',
+        }}
+        title="Drag down to add space for stickers"
+      >
+        <div className="flex flex-col items-center gap-1 px-3 py-2">
+          <span
+            className="block h-[2px] rounded-full"
+            style={{ width: value > 0 ? 22 : 18, background: primaryColor, opacity: value > 0 ? 0.75 : 0.5 }}
+          />
+          <span
+            className="block h-[2px] rounded-full"
+            style={{ width: value > 0 ? 14 : 10, background: primaryColor, opacity: value > 0 ? 0.45 : 0.25 }}
+          />
+        </div>
+      </button>
+    </div>
+  )
 }
 
 function PhotoGrid({ images }: { images: string[] }) {
@@ -295,7 +375,25 @@ function PhotoGrid({ images }: { images: string[] }) {
   )
 }
 
-function EventPreview({ event, content, primaryColor, bgColor, displayFont, bodyFont, heroLayout, sectionLayouts, hiddenSections, sectionOrder, onSectionClick }: PreviewProps) {
+function EventPreview({
+  event,
+  content,
+  primaryColor,
+  bgColor,
+  displayFont,
+  bodyFont,
+  heroLayout,
+  sectionLayouts,
+  hiddenSections,
+  sectionOrder,
+  sectionSpacing,
+  stickers,
+  activeStickerSection,
+  onSectionStickersChange,
+  onSectionClick,
+  onSectionSpacingChange,
+  sectionLayerRefs,
+}: PreviewProps) {
   const c = content
   const hasStory = c.our_story?.introduction || c.our_story?.story
   const hasSchedule = c.schedule && c.schedule.length > 0
@@ -304,6 +402,7 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
   const hasTravel = c.travel?.notes || (c.travel?.cards && c.travel.cards.length > 0)
   const hasFaq = c.faq && c.faq.length > 0
   const [openFaq, setOpenFaq] = useState<string | null>(null)
+  const legacyPageStickers = getLegacyPageStickers(stickers)
 
   const sectionClick = (s: string) => (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -311,6 +410,34 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
   }
 
   const isHidden = (s: string) => hiddenSections.includes(s)
+  const spacingFor = (sectionKey: string) => Math.max(0, Math.min(MAX_SECTION_SPACING, sectionSpacing[sectionKey] ?? 0))
+
+  function renderStickerLayer(sectionKey: string) {
+    const sectionStickers = getSectionStickers(stickers, sectionKey)
+    if (activeStickerSection === sectionKey) {
+      return (
+        <StickerCanvas
+          stickers={sectionStickers}
+          onChange={next => onSectionStickersChange(sectionKey, next)}
+          primaryColor={primaryColor}
+        />
+      )
+    }
+    return <StickerOverlay stickers={sectionStickers} />
+  }
+
+  function renderSectionLayer(sectionKey: string, node: React.ReactNode) {
+    return (
+      <div
+        key={sectionKey}
+        ref={element => { sectionLayerRefs.current[sectionKey] = element }}
+        className="relative"
+      >
+        {node}
+        {renderStickerLayer(sectionKey)}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: resolveFontFamily(bodyFont), background: bgColor, color: primaryColor }}>
@@ -346,20 +473,21 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
 
         if (heroLayout === 'full-bleed') {
           const coverUrl = event.cover_image_url
-          return (
+          return renderSectionLayer('welcome', (
             <section
               onClick={sectionClick('welcome')}
-              className="cursor-pointer group relative min-h-[50vh] flex flex-col items-center justify-center text-center"
+              className="cursor-pointer group relative min-h-[50vh] flex flex-col items-center justify-center text-center px-8 pt-20"
               style={{
                 background: coverUrl
                   ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${coverUrl}) center/cover no-repeat`
                   : primaryColor,
                 color: 'white',
+                paddingBottom: `${80 + spacingFor('welcome')}px`,
               }}
               title="Click to edit Welcome"
             >
               {hoverOverlay}
-              <div className="relative px-8 py-20 flex flex-col items-center gap-6 w-full">
+              <div className="relative flex flex-col items-center gap-6 w-full">
                 <h1 className="text-5xl font-semibold" style={{ fontFamily: resolveFontFamily(displayFont), letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine && <div style={{ opacity: 0.8 }}>{metaLine}</div>}
                 {c.welcome?.greeting && (
@@ -369,17 +497,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                 )}
                 {rsvpBar}
               </div>
+              <SectionSpacingHandle
+                sectionKey="welcome"
+                value={spacingFor('welcome')}
+                primaryColor={bgColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (heroLayout === 'split') {
           const coverUrl = event.cover_image_url
-          return (
+          return renderSectionLayer('welcome', (
             <section
               onClick={sectionClick('welcome')}
               className="cursor-pointer group relative flex min-h-[55vh]"
-              style={{ background: bgColor }}
+              style={{ background: bgColor, paddingBottom: `${spacingFor('welcome')}px` }}
               title="Click to edit Welcome"
             >
               {hoverOverlay}
@@ -403,16 +537,22 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                     : `${primaryColor}15`,
                 }}
               />
+              <SectionSpacingHandle
+                sectionKey="welcome"
+                value={spacingFor('welcome')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (heroLayout === 'illustrated') {
-          return (
+          return renderSectionLayer('welcome', (
             <section
               onClick={sectionClick('welcome')}
-              className="cursor-pointer group relative px-8 py-24 text-center"
-              style={{ background: bgColor }}
+              className="cursor-pointer group relative px-8 pt-24 text-center"
+              style={{ background: bgColor, paddingBottom: `${96 + spacingFor('welcome')}px` }}
               title="Click to edit Welcome"
             >
               {hoverOverlay}
@@ -436,16 +576,22 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                 </p>
               )}
               {rsvpBar}
+              <SectionSpacingHandle
+                sectionKey="welcome"
+                value={spacingFor('welcome')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         // Default: centered
-        return (
+        return renderSectionLayer('welcome', (
           <section
             onClick={sectionClick('welcome')}
-            className="cursor-pointer group relative px-8 py-20 text-center"
-            style={{ background: bgColor }}
+            className="cursor-pointer group relative px-8 pt-20 text-center"
+            style={{ background: bgColor, paddingBottom: `${80 + spacingFor('welcome')}px` }}
             title="Click to edit Welcome"
           >
             {hoverOverlay}
@@ -457,8 +603,14 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
               </p>
             )}
             {rsvpBar}
+            <SectionSpacingHandle
+              sectionKey="welcome"
+              value={spacingFor('welcome')}
+              primaryColor={primaryColor}
+              onChange={onSectionSpacingChange}
+            />
           </section>
-        )
+        ))
       })()}
 
       {/* Render non-welcome sections in sectionOrder */}
@@ -468,11 +620,11 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
         if (key === 'story') {
           if (!hasStory) return null
           const storyLayout = sectionLayouts['story'] ?? 'stacked'
-          return (
+          return renderSectionLayer('story', (
             <section key="story"
               onClick={sectionClick('story')}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('story')}px` }}
               title="Click to edit Our Story"
             >
               <div
@@ -503,17 +655,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   <PhotoGrid images={c.our_story?.images ?? []} />
                 </div>
               )}
+              <SectionSpacingHandle
+                sectionKey="story"
+                value={spacingFor('story')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'schedule') {
           if (!hasSchedule) return null
-          return (
+          return renderSectionLayer('schedule', (
             <section key="schedule"
               onClick={sectionClick('schedule')}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('schedule')}px` }}
               title="Click to edit Schedule"
             >
               <div
@@ -549,17 +707,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   ))}
                 </div>
               )}
+              <SectionSpacingHandle
+                sectionKey="schedule"
+                value={spacingFor('schedule')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'wedding_party') {
           if (!hasParty) return null
-          return (
+          return renderSectionLayer('wedding_party', (
             <section key="wedding_party"
               onClick={sectionClick('wedding_party')}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('wedding_party')}px` }}
               title="Click to edit Wedding Party"
             >
               <div
@@ -607,17 +771,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   ))}
                 </div>
               )}
+              <SectionSpacingHandle
+                sectionKey="wedding_party"
+                value={spacingFor('wedding_party')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'attire') {
           if (!hasAttire) return null
-          return (
+          return renderSectionLayer('attire', (
             <section key="attire"
               onClick={sectionClick('attire')}
-              className="cursor-pointer group relative px-8 py-16 border-t text-center"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t text-center"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('attire')}px` }}
               title="Click to edit Attire"
             >
               <div
@@ -627,17 +797,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
               <p className="text-xs font-semibold uppercase tracking-widest mb-6 opacity-40">Attire</p>
               {c.attire?.dress_code && <p className="text-2xl font-semibold mb-3">{c.attire.dress_code}</p>}
               {c.attire?.notes && <p className="text-sm opacity-60 max-w-md mx-auto">{c.attire.notes}</p>}
+              <SectionSpacingHandle
+                sectionKey="attire"
+                value={spacingFor('attire')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'travel') {
           if (!hasTravel) return null
-          return (
+          return renderSectionLayer('travel', (
             <section key="travel"
               onClick={sectionClick('travel')}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('travel')}px` }}
               title="Click to edit Travel"
             >
               <div
@@ -667,16 +843,22 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   </div>
                 )}
               </div>
+              <SectionSpacingHandle
+                sectionKey="travel"
+                value={spacingFor('travel')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'registry') {
-          return (
+          return renderSectionLayer('registry', (
             <section key="registry"
               onClick={sectionClick('registry')}
-              className="cursor-pointer group relative px-8 py-16 border-t text-center"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t text-center"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('registry')}px` }}
               title="Click to edit Registry"
             >
               <div
@@ -693,17 +875,23 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
               >
                 {c.registry?.button_text || 'View registry'}
               </button>
+              <SectionSpacingHandle
+                sectionKey="registry"
+                value={spacingFor('registry')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key === 'faq') {
           if (!hasFaq) return null
-          return (
+          return renderSectionLayer('faq', (
             <section key="faq"
               onClick={sectionClick('faq')}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor('faq')}px` }}
               title="Click to edit FAQ"
             >
               <div
@@ -744,8 +932,14 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   ))}
                 </div>
               )}
+              <SectionSpacingHandle
+                sectionKey="faq"
+                value={spacingFor('faq')}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         if (key.startsWith('custom_')) {
@@ -753,11 +947,11 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const cs = (c as any).custom_sections?.find((s: any) => s.id === customId)
           if (!cs) return null
-          return (
+          return renderSectionLayer(key, (
             <section key={key}
               onClick={e => { e.stopPropagation(); onSectionClick(key) }}
-              className="cursor-pointer group relative px-8 py-16 border-t"
-              style={{ borderColor: `${primaryColor}15` }}
+              className="cursor-pointer group relative px-8 pt-16 border-t"
+              style={{ borderColor: `${primaryColor}15`, paddingBottom: `${64 + spacingFor(key)}px` }}
               title={`Click to edit ${cs.title}`}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
@@ -774,8 +968,14 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
                   </div>
                 )}
               </div>
+              <SectionSpacingHandle
+                sectionKey={key}
+                value={spacingFor(key)}
+                primaryColor={primaryColor}
+                onChange={onSectionSpacingChange}
+              />
             </section>
-          )
+          ))
         }
 
         return null
@@ -785,6 +985,8 @@ function EventPreview({ event, content, primaryColor, bgColor, displayFont, body
       <div className="py-8 text-center border-t" style={{ borderColor: `${primaryColor}10` }}>
         <p className="text-xs opacity-25">Powered by Joyabl</p>
       </div>
+
+      <StickerOverlay stickers={legacyPageStickers} />
     </div>
   )
 }
@@ -814,6 +1016,7 @@ export default function WebsiteEditorPage() {
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [showShare, setShowShare] = useState(false)
+  const [showFullscreenPreview, setShowFullscreenPreview] = useState(false)
   const [sharePassword, setSharePassword] = useState('')
   const [passwordEnabled, setPasswordEnabled] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -834,9 +1037,19 @@ export default function WebsiteEditorPage() {
     return () => document.removeEventListener('keydown', handler)
   }, [mobileEditorOpen])
 
+  useEffect(() => {
+    if (!showFullscreenPreview) return
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') setShowFullscreenPreview(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [showFullscreenPreview])
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingPatch = useRef<Record<string, unknown>>({})
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const previewScrollRef = useRef<HTMLDivElement | null>(null)
+  const previewFrameRef = useRef<HTMLDivElement | null>(null)
+  const previewSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Load
   useEffect(() => {
@@ -996,18 +1209,63 @@ export default function WebsiteEditorPage() {
     })
   }
 
+  function updateSectionStickers(sectionKey: string, nextSectionStickers: PlacedSticker[]) {
+    updateStickers(mergeSectionStickers(stickers, sectionKey, nextSectionStickers))
+  }
+
   function addSticker(def: StickerDef) {
+    const targetSection = activeSection || 'welcome'
+    const frameRect = previewSectionRefs.current[targetSection]?.getBoundingClientRect() ?? previewFrameRef.current?.getBoundingClientRect()
+    const scrollRect = previewScrollRef.current?.getBoundingClientRect()
+
+    let x = 50
+    let y = 50
+
+    if (frameRect && scrollRect && frameRect.width > 0 && frameRect.height > 0) {
+      const visibleLeft = Math.max(frameRect.left, scrollRect.left)
+      const visibleRight = Math.min(frameRect.right, scrollRect.right)
+      const visibleTop = Math.max(frameRect.top, scrollRect.top)
+      const visibleBottom = Math.min(frameRect.bottom, scrollRect.bottom)
+
+      const centerX = visibleRight > visibleLeft
+        ? (visibleLeft + visibleRight) / 2
+        : frameRect.left + frameRect.width / 2
+      const centerY = visibleBottom > visibleTop
+        ? (visibleTop + visibleBottom) / 2
+        : frameRect.top + frameRect.height / 2
+
+      x = Math.max(5, Math.min(95, ((centerX - frameRect.left) / frameRect.width) * 100))
+      y = Math.max(5, Math.min(95, ((centerY - frameRect.top) / frameRect.height) * 100))
+    }
+
     const newSticker: PlacedSticker = {
       id: Math.random().toString(36).slice(2, 10),
       src: def.src,
-      x: 50,
-      y: 8,
+      sectionId: targetSection,
+      x,
+      y,
       width: 15,
       rotation: 0,
       opacity: 1,
       color: primaryColor,
     }
     updateStickers([...stickers, newSticker])
+  }
+
+  function setSectionSpacing(sectionKey: string, spacing: number) {
+    const clamped = Math.max(0, Math.min(MAX_SECTION_SPACING, Math.round(spacing)))
+    setContent(prev => {
+      const nextSpacing = { ...(prev._section_spacing ?? {}) }
+      if (clamped === 0) delete nextSpacing[sectionKey]
+      else nextSpacing[sectionKey] = clamped
+
+      const nextContent: EventContent = {
+        ...prev,
+        _section_spacing: Object.keys(nextSpacing).length > 0 ? nextSpacing : undefined,
+      }
+      scheduleSave({ content: nextContent })
+      return nextContent
+    })
   }
 
   function openSection(s: string) {
@@ -1250,65 +1508,99 @@ export default function WebsiteEditorPage() {
             >
               <Share2 size={12} /> Share
             </button>
-            <a
-              href={`/events/${id}/preview`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => setShowFullscreenPreview(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
               style={{ background: '#2C2B26', color: 'white' }}
             >
               <Eye size={12} /> Preview
-            </a>
+            </button>
           </div>
         </div>
 
         {/* Preview area */}
-        <div className="flex-1 overflow-y-auto p-6 flex justify-center items-start" style={{ background: '#E8E3D9' }}>
+        <div ref={previewScrollRef} className="flex-1 overflow-y-auto p-6 flex justify-center items-start" style={{ background: '#E8E3D9' }}>
           <div
-            className="rounded-2xl shadow-2xl transition-all duration-300 w-full overflow-hidden"
-            style={{ maxWidth: viewport === 'mobile' ? 390 : 900, background: bgColor }}
+            className="w-full overflow-hidden rounded-2xl shadow-2xl transition-all duration-300"
+            style={{
+              maxWidth: viewport === 'mobile' ? 390 : undefined,
+              background: bgColor,
+            }}
           >
-            {/* Browser chrome bar */}
-            <div
-              className="flex items-center gap-2 px-4 py-2.5 border-b"
-              style={{ background: 'rgba(255,255,255,0.6)', borderColor: 'rgba(0,0,0,0.06)' }}
-            >
-              <div className="flex gap-1.5">
-                {['#FF5F57', '#FFBD2E', '#28CA41'].map(c => (
-                  <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
-                ))}
-              </div>
-              <div
-                className="flex-1 mx-4 py-1 px-3 rounded-md text-xs text-center"
-                style={{ background: 'rgba(0,0,0,0.04)', color: '#8B8670' }}
-              >
-                joyabl.com/e/{event.slug}
-              </div>
-            </div>
-
-            <div className="relative">
-              <EventPreview
-                event={event}
-                content={content}
-                primaryColor={primaryColor}
-                bgColor={bgColor}
-                displayFont={displayFont}
-                bodyFont={bodyFont}
-                heroLayout={heroLayout}
-                sectionLayouts={sectionLayouts}
-                hiddenSections={hiddenSections}
-                sectionOrder={sectionOrder}
-                onSectionClick={openSection}
-              />
-              <StickerCanvas
-                stickers={stickers}
-                onChange={updateStickers}
-                primaryColor={primaryColor}
+            <div ref={previewFrameRef} className="relative">
+              <EventPage
+                event={{ ...event, content }}
+                rsvpHref={`/e/${event.slug}/rsvp`}
+                registryHref={`/events/${id}/preview/registry`}
+                editor={{
+                  activeStickerSection: activeSection ?? 'welcome',
+                  onSectionStickersChange: updateSectionStickers,
+                  onSectionClick: openSection,
+                  onSectionSpacingChange: setSectionSpacing,
+                  sectionLayerRefs: previewSectionRefs,
+                }}
               />
             </div>
           </div>
         </div>
       </div>
+
+      {showFullscreenPreview && (
+        <div className="fixed inset-0 z-[80] flex flex-col" style={{ background: '#E8E3D9' }}>
+          <div
+            className="flex items-center justify-between border-b px-4 py-3 shrink-0"
+            style={{ background: 'rgba(255,255,255,0.94)', borderColor: '#E8E3D9', backdropFilter: 'blur(18px)' }}
+          >
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFullscreenPreview(false)}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all"
+                style={{ background: '#2C2B26', color: 'white' }}
+              >
+                <X size={12} />
+                Close
+              </button>
+              <span className="hidden text-xs md:block" style={{ color: '#8B8670' }}>
+                Preview mode - this is how your guests will see it
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-xl p-0.5" style={{ background: '#F5F0E8' }}>
+              {(['desktop', 'mobile'] as const).map(v => (
+                <button
+                  key={`fullscreen-${v}`}
+                  type="button"
+                  onClick={() => setViewport(v)}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
+                  style={{
+                    background: viewport === v ? 'white' : 'transparent',
+                    color: viewport === v ? '#2C2B26' : '#8B8670',
+                    boxShadow: viewport === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  }}
+                >
+                  {v === 'desktop' ? <Monitor size={13} /> : <Smartphone size={13} />}
+                  {v === 'desktop' ? 'Desktop' : 'Mobile'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+            <div
+              className="mx-auto w-full overflow-hidden rounded-2xl bg-white shadow-2xl"
+              style={{ maxWidth: viewport === 'mobile' ? 390 : undefined }}
+            >
+              <EventPage
+                event={{ ...event, content }}
+                rsvpHref={`/e/${event.slug}/rsvp`}
+                registryHref={`/e/${event.slug}/registry`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
       <div
@@ -1429,54 +1721,66 @@ export default function WebsiteEditorPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs" style={{ color: '#8B8670' }}>Text colour</span>
-                      <input
-                        type="color"
-                        className="w-full h-14 rounded-xl cursor-pointer border-0 p-0"
+                      <ColorPickerPopover
                         value={customPrimary}
-                        onChange={e => {
-                          const val = e.target.value
+                        onChange={val => {
                           setCustomPrimary(val)
                           setPalette(val, customBg, 'Custom')
                         }}
-                      />
-                      <input
-                        type="text"
-                        className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
-                        style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
-                        value={customPrimary}
-                        onChange={e => setCustomPrimary(e.target.value)}
-                        onBlur={e => {
-                          const val = e.target.value
-                          if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                            setPalette(val, customBg, 'Custom')
-                          }
-                        }}
+                        title="Custom"
+                        subtitle="Text colour"
+                        placement="bottom"
+                        align="end"
+                        triggerAriaLabel="Choose text colour"
+                        triggerClassName="w-full rounded-[20px] border p-3 text-left transition-all hover:border-[#D9D1C3]"
+                        renderTrigger={({ value }) => (
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="h-12 w-12 rounded-2xl border shadow-sm"
+                              style={{ background: value, borderColor: 'rgba(44,43,38,0.08)' }}
+                            />
+                            <div className="min-w-0">
+                              <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: '#8B8670' }}>
+                                Hex
+                              </div>
+                              <div className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>
+                                {value.toUpperCase()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs" style={{ color: '#8B8670' }}>Page background</span>
-                      <input
-                        type="color"
-                        className="w-full h-14 rounded-xl cursor-pointer border-0 p-0"
+                      <ColorPickerPopover
                         value={customBg}
-                        onChange={e => {
-                          const val = e.target.value
+                        onChange={val => {
                           setCustomBg(val)
                           setPalette(customPrimary, val, 'Custom')
                         }}
-                      />
-                      <input
-                        type="text"
-                        className="w-full text-xs px-2 py-1.5 rounded-lg border text-center font-mono outline-none"
-                        style={{ borderColor: '#E8E3D9', color: '#2C2B26' }}
-                        value={customBg}
-                        onChange={e => setCustomBg(e.target.value)}
-                        onBlur={e => {
-                          const val = e.target.value
-                          if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-                            setPalette(customPrimary, val, 'Custom')
-                          }
-                        }}
+                        title="Custom"
+                        subtitle="Page background"
+                        placement="bottom"
+                        align="end"
+                        triggerAriaLabel="Choose page background colour"
+                        triggerClassName="w-full rounded-[20px] border p-3 text-left transition-all hover:border-[#D9D1C3]"
+                        renderTrigger={({ value }) => (
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="h-12 w-12 rounded-2xl border shadow-sm"
+                              style={{ background: value, borderColor: 'rgba(44,43,38,0.08)' }}
+                            />
+                            <div className="min-w-0">
+                              <div className="text-[11px] uppercase tracking-[0.14em]" style={{ color: '#8B8670' }}>
+                                Hex
+                              </div>
+                              <div className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>
+                                {value.toUpperCase()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       />
                     </div>
                   </div>

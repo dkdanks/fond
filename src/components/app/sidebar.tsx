@@ -135,7 +135,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
                 className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                 style={{
                   background: parentActive && sub.length === 0 ? '#2C2B26' : 'transparent',
-                  color: parentActive ? '#2C2B26' : '#8B8670',
+                  color: parentActive && sub.length === 0 ? '#FAFAF7' : parentActive ? '#2C2B26' : '#8B8670',
                   minHeight: 36,
                 }}
                 onClick={() => setMobileOpen(false)}
