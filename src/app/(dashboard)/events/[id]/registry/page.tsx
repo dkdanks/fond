@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Plus, Trash2, ImageIcon, Gift, X, Check, Loader2, Pencil,
-  LayoutGrid, List, ChevronDown, ChevronRight, Eye
+  LayoutGrid, List, ChevronDown, ChevronRight, Eye, SlidersHorizontal
 } from 'lucide-react'
 import { formatCurrency, type RegistryPool, type Contribution } from '@/types'
 
@@ -80,6 +80,7 @@ export default function RegistryPage() {
   const [settings, setSettings] = useState<RegistrySettings>(DEFAULT_SETTINGS)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [settingsOpen, setSettingsOpen] = useState(true)
 
   // Add item form
   const [showAddForm, setShowAddForm] = useState(false)
@@ -287,6 +288,18 @@ export default function RegistryPage() {
               style={{ background: '#2C2B26', color: 'white' }}
             >
               <Plus size={13} /> Add item
+            </button>
+            <button
+              onClick={() => setSettingsOpen(o => !o)}
+              className="hidden md:flex items-center justify-center w-8 h-8 rounded-xl border transition-colors"
+              style={{
+                borderColor: settingsOpen ? '#2C2B26' : '#E8E3D9',
+                color: settingsOpen ? '#2C2B26' : '#8B8670',
+                background: settingsOpen ? '#2C2B26' + '08' : 'white',
+              }}
+              title="Display settings"
+            >
+              <SlidersHorizontal size={13} />
             </button>
           </div>
         </div>
@@ -533,7 +546,16 @@ export default function RegistryPage() {
       </div>
 
       {/* ── RIGHT PANEL ────────────────────────────────────── */}
-      <div className="hidden md:flex flex-col h-full border-l overflow-hidden shrink-0" style={{ width: 300, background: 'white', borderColor: '#E8E3D9' }}>
+      <div
+        className="hidden md:flex flex-col h-full border-l overflow-hidden shrink-0"
+        style={{
+          width: settingsOpen ? 300 : 0,
+          transition: 'width 0.25s ease',
+          background: 'white',
+          borderColor: '#E8E3D9',
+          minWidth: 0,
+        }}
+      >
 
         {/* Header */}
         <div className="px-4 pt-4 pb-0 shrink-0">

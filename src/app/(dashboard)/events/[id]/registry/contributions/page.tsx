@@ -311,7 +311,7 @@ export default function ContributionsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+      <div className="rounded-2xl border overflow-x-auto" style={{ background: 'white', borderColor: '#E8E3D9' }}>
         {loading ? (
           <div className="py-20 text-center">
             <p className="text-sm" style={{ color: '#B5A98A' }}>Loading contributions…</p>
@@ -327,7 +327,7 @@ export default function ContributionsPage() {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ minWidth: 680 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #F0EDE8' }}>
                 <th className="w-10 pl-5 py-3 text-left">
