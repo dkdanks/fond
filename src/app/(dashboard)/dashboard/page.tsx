@@ -1,10 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { requireDashboardUser } from '@/lib/dashboard-server'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { supabase, user } = await requireDashboardUser()
 
   const { data: events } = await supabase
     .from('events')

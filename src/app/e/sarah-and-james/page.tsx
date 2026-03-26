@@ -17,7 +17,7 @@ export default function SarahAndJamesPage() {
 
       {/* Hero */}
       <section className="px-4 py-16 md:px-8 md:py-28 text-center" style={{ background: BG }}>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-6 opacity-40">You're invited to celebrate</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-6 opacity-40">You&rsquo;re invited to celebrate</p>
         <h1
           className="text-5xl md:text-7xl font-light mb-5"
           style={{ letterSpacing: '-0.02em', fontStyle: 'italic' }}
@@ -31,7 +31,7 @@ export default function SarahAndJamesPage() {
           className="text-xl leading-relaxed max-w-xl mx-auto mb-12 opacity-75"
           style={{ fontStyle: 'italic', fontWeight: 300 }}
         >
-          "After three years, two cities, and one very enthusiastic dog, we're finally tying the knot — and we want you there."
+          &ldquo;After three years, two cities, and one very enthusiastic dog, we&rsquo;re finally tying the knot — and we want you there.&rdquo;
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <Link
@@ -67,10 +67,10 @@ export default function SarahAndJamesPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-10 opacity-40 text-center">Our Story</p>
         <div className="max-w-2xl mx-auto">
           <p className="text-xl leading-relaxed mb-6 font-medium" style={{ fontStyle: 'italic' }}>
-            We met at a mutual friend's dinner party in Notting Hill — James arrived late, knocked over Sarah's wine, and somehow that was the best thing that ever happened to either of us.
+            We met at a mutual friend&rsquo;s dinner party in Notting Hill — James arrived late, knocked over Sarah&rsquo;s wine, and somehow that was the best thing that ever happened to either of us.
           </p>
           <p className="text-base leading-relaxed opacity-65">
-            What followed was three years of Sunday markets, weekend escapes to the Cotswolds, arguing about which pasta shape is superior (James is wrong about pappardelle), and realising, slowly and then all at once, that we'd found our person. James proposed on a rainy Tuesday evening on Primrose Hill — not the grand plan, but perfect anyway.
+            What followed was three years of Sunday markets, weekend escapes to the Cotswolds, arguing about which pasta shape is superior (James is wrong about pappardelle), and realising, slowly and then all at once, that we&rsquo;d found our person. James proposed on a rainy Tuesday evening on Primrose Hill — not the grand plan, but perfect anyway.
           </p>
           <div className="mt-10 grid grid-cols-2 gap-3">
             <div
@@ -140,7 +140,7 @@ export default function SarahAndJamesPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-6 opacity-40">Attire</p>
         <p className="text-3xl font-light mb-3" style={{ fontStyle: 'italic' }}>Garden Party Formal</p>
         <p className="text-sm opacity-55 max-w-md mx-auto">
-          Think florals, pastels, and anything that works with an afternoon in a botanical garden. Black tie is not expected — but wear something you'd feel comfortable dancing in.
+          Think florals, pastels, and anything that works with an afternoon in a botanical garden. Black tie is not expected — but wear something you&rsquo;d feel comfortable dancing in.
         </p>
       </section>
 
@@ -193,7 +193,7 @@ export default function SarahAndJamesPage() {
       <section className="px-4 py-16 md:px-8 md:py-20 text-center border-t" style={{ borderColor: `${PRIMARY}12` }}>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] mb-6 opacity-40">Registry</p>
         <p className="text-base opacity-65 max-w-xl mx-auto mb-10 leading-relaxed">
-          Your presence is the greatest gift. For those who'd like to contribute, we've put together a small collection of experiences and things for our home.
+          Your presence is the greatest gift. For those who&rsquo;d like to contribute, we&rsquo;ve put together a small collection of experiences and things for our home.
         </p>
         <Link
           href="/e/sarah-and-james/registry"

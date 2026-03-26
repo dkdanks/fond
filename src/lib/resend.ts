@@ -6,14 +6,12 @@ export async function sendInvitation({
   to,
   guestName,
   eventTitle,
-  eventType,
   eventSlug,
   hostName,
 }: {
   to: string
   guestName: string
   eventTitle: string
-  eventType: string
   eventSlug: string
   hostName: string
 }) {

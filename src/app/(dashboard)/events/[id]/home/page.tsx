@@ -1,28 +1,17 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+import { requireOwnedEvent } from '@/lib/dashboard-server'
 import Link from 'next/link'
 import { CalendarDays, LayoutTemplate, Users, Gift, ArrowRight, MapPin, ExternalLink } from 'lucide-react'
 import { CopyLinkButton } from '@/components/dashboard/copy-link-button'
+import { DashboardPage, DashboardPageHeader } from '@/components/dashboard/page-layout'
 import { PublishButton } from '@/components/dashboard/publish-button'
+import { DashboardCard, DashboardStatCard } from '@/components/dashboard/surface'
+import { Badge } from '@/components/ui/badge'
 import { EVENT_TYPE_LABELS, formatCurrency, type Event } from '@/types'
 import { formatDate } from '@/lib/utils'
 
 export default async function HomePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: eventData } = await supabase
-    .from('events')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!eventData) notFound()
-  const event = eventData as Event
+  const { supabase, event } = await requireOwnedEvent<Event>(id)
 
   const [
     { count: totalGuests },
@@ -54,32 +43,23 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-10 max-w-4xl mx-auto">
+    <DashboardPage className="md:py-10" width="default">
+      <DashboardPageHeader
+        title="Overview"
+        description="Track your event at a glance and jump into the next task."
+        className="mb-6"
+      />
 
       {/* Hero card */}
-      <div
-        className="rounded-3xl border overflow-hidden mb-8"
-        style={{ background: 'white', borderColor: '#E8E3D9' }}
-      >
+      <DashboardCard className="rounded-3xl overflow-hidden mb-8">
         <div className="p-4 md:p-8 flex flex-col sm:flex-row items-start justify-between gap-4 md:gap-8">
           {/* Left: title, date, badges */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-4">
-              <span
-                className="text-xs font-medium px-2.5 py-1 rounded-full"
-                style={{ background: '#F0EDE8', color: '#8B8670' }}
-              >
-                {EVENT_TYPE_LABELS[event.type]}
-              </span>
-              <span
-                className="text-xs font-medium px-2.5 py-1 rounded-full"
-                style={{
-                  background: event.status === 'published' ? '#F0FDF4' : '#F0EDE8',
-                  color: event.status === 'published' ? '#16A34A' : '#8B8670',
-                }}
-              >
+              <Badge variant="muted">{EVENT_TYPE_LABELS[event.type]}</Badge>
+              <Badge variant={event.status === 'published' ? 'success' : 'muted'}>
                 {event.status === 'published' ? 'Live' : 'Draft'}
-              </span>
+              </Badge>
             </div>
 
             <h1
@@ -177,7 +157,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
             )}
           </div>
         </div>
-      </div>
+      </DashboardCard>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -187,15 +167,7 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
           { label: 'Attending', value: attendingGuests ?? 0, sub: 'confirmed RSVPs' },
           { label: 'Awaiting RSVP', value: pendingGuests ?? 0, sub: 'yet to respond' },
         ].map(({ label, value, sub }) => (
-          <div
-            key={label}
-            className="rounded-2xl border p-3 md:p-5"
-            style={{ background: 'white', borderColor: '#E8E3D9' }}
-          >
-            <p className="text-xs mb-1.5 md:mb-2.5" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-xl md:text-2xl font-semibold mb-0.5 md:mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>{value}</p>
-            <p className="text-xs" style={{ color: '#C8BFA8' }}>{sub}</p>
-          </div>
+          <DashboardStatCard key={label} label={label} value={value} sub={sub} />
         ))}
       </div>
 
@@ -319,6 +291,6 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
           </Link>
         ))}
       </div>
-    </div>
+    </DashboardPage>
   )
 }

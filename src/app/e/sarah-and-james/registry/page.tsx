@@ -259,7 +259,7 @@ export default function SarahAndJamesRegistry() {
           Gift registry
         </h1>
         <p className="text-base opacity-60 max-w-lg mx-auto leading-relaxed">
-          Your presence is the greatest gift. For those who'd like to contribute, we've put together a few things we'd treasure.
+          Your presence is the greatest gift. For those who&rsquo;d like to contribute, we&rsquo;ve put together a few things we&rsquo;d treasure.
         </p>
       </section>
 

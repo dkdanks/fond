@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 
 const TABS = ['Our story', 'The day', 'Attire', 'Gift funds'] as const
@@ -81,13 +82,15 @@ export function ProductPreview() {
                   We met on a rainy Tuesday in Edinburgh at a tiny bookshop neither of us meant to walk into. James had his nose in a travel memoir. Sarah was looking for something entirely different and ended up with a copy of the same book.
                 </p>
                 <p className="text-sm leading-relaxed mt-3" style={{ color: '#6B7280' }}>
-                  That was four years ago. We've since moved cities, adopted a dog named Biscuit, and somehow talked each other into this.
+                  That was four years ago. We&rsquo;ve since moved cities, adopted a dog named Biscuit, and somehow talked each other into this.
                 </p>
               </div>
               <div className="col-span-2">
-                <img
+                <Image
                   src="/images/couple.jpg"
                   alt="Sarah and James"
+                  width={320}
+                  height={160}
                   className="w-full rounded-xl object-cover"
                   style={{ height: 160, objectPosition: 'center 30%' }}
                 />
@@ -125,11 +128,11 @@ export function ProductPreview() {
             <div>
               <p className="text-xl font-semibold mb-4" style={{ color: '#1C1C1C' }}>Black tie</p>
               <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-                We'd love for guests to dress up with us. Suits and floor-length gowns preferred — but most importantly, something you feel wonderful in. The venue can be cool in the evening, so a layer is advisable.
+                We&rsquo;d love for guests to dress up with us. Suits and floor-length gowns preferred — but most importantly, something you feel wonderful in. The venue can be cool in the evening, so a layer is advisable.
               </p>
               <div className="mt-5 rounded-xl p-4" style={{ background: 'white', border: '1px solid #E5E5E4' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: '#1C1C1C' }}>A note on colour</p>
-                <p className="text-xs" style={{ color: '#9CA3AF' }}>We'd prefer guests avoid ivory or white — other than that, anything goes.</p>
+                <p className="text-xs" style={{ color: '#9CA3AF' }}>We&rsquo;d prefer guests avoid ivory or white — other than that, anything goes.</p>
               </div>
             </div>
           )}
@@ -143,9 +146,11 @@ export function ProductPreview() {
                 ].map((fund) => (
                   <div key={fund.label} className="rounded-xl border overflow-hidden" style={{ background: 'white', borderColor: '#E5E5E4' }}>
                     <div className="h-20 overflow-hidden">
-                      <img
+                      <Image
                         src={fund.img}
                         alt={fund.label}
+                        width={240}
+                        height={80}
                         className="w-full h-full object-cover"
                         style={{ objectPosition: fund.pos }}
                       />

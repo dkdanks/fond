@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createClient } from '@/lib/supabase/client'
@@ -22,14 +23,12 @@ interface FundProgress {
 // ── Inner payment form (must be inside <Elements>) ───────────────────────────
 function PaymentForm({
   amountCents,
-  name,
   primaryColor,
   bgColor,
   onSuccess,
   onError,
 }: {
   amountCents: number
-  name: string
   primaryColor: string
   bgColor: string
   onSuccess: () => void
@@ -92,17 +91,13 @@ function PaymentForm({
 // ── Fund Card ─────────────────────────────────────────────────────────────────
 function FundCard({
   fund,
-  raised,
   pct,
   primaryColor,
-  bgColor,
   onClick,
 }: {
   fund: RegistryPool
-  raised: number
   pct: number | null
   primaryColor: string
-  bgColor: string
   onClick: () => void
 }) {
   return (
@@ -141,6 +136,7 @@ function FundCard({
 // ── Main registry page ────────────────────────────────────────────────────────
 export default function RegistryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
+  const searchParams = useSearchParams()
   const [primaryColor, setPrimaryColor] = useState('#2C2B26')
   const [bgColor, setBgColor] = useState('#F5F0E8')
   const [font, setFont] = useState('Inter')
@@ -152,8 +148,8 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   const [selectedFund, setSelectedFund] = useState<SelectedFund>(undefined)
 
   // Details form state
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [name, setName] = useState(() => searchParams.get('name') ?? '')
+  const [email, setEmail] = useState(() => searchParams.get('email') ?? '')
   const [amountCents, setAmountCents] = useState(5000)
   const [customAmount, setCustomAmount] = useState('')
   const [message, setMessage] = useState('')
@@ -161,25 +157,10 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   // Payment state
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loadingPayment, setLoadingPayment] = useState(false)
-  const [done, setDone] = useState(false)
+  const [done, setDone] = useState(() => searchParams.get('success') === '1')
   const [error, setError] = useState('')
 
   const supabase = createClient()
-
-  useEffect(() => {
-    // Handle Stripe redirect return (3DS flows)
-    const url = new URL(window.location.href)
-    if (url.searchParams.get('success') === '1') {
-      setDone(true)
-    }
-
-    // Pre-fill name and email from URL params (e.g. from invitation email links)
-    const params = new URLSearchParams(window.location.search)
-    const n = params.get('name')
-    const e = params.get('email')
-    if (n) setName(n)
-    if (e) setEmail(e)
-  }, [])
 
   useEffect(() => {
     async function load() {
@@ -214,7 +195,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
       setProgress(prog)
     }
     load()
-  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slug, supabase])
 
   const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amountCents
   const fee = calculateFee(effectiveAmount)
@@ -386,10 +367,8 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
                         <FundCard
                           key={fund.id}
                           fund={fund}
-                          raised={raised}
                           pct={pct}
                           primaryColor={primaryColor}
-                          bgColor={bgColor}
                           onClick={() => { setSelectedFund(fund); setStep('details') }}
                         />
                       )
@@ -539,7 +518,6 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
           >
             <PaymentForm
               amountCents={effectiveAmount}
-              name={name}
               primaryColor={primaryColor}
               bgColor={bgColor}
               onSuccess={() => setDone(true)}

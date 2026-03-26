@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { guardEvent } from '@/lib/event-guard'
 import { Send, Check, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/app/toast-provider'
+import { DashboardErrorState, DashboardPage, DashboardPageHeader } from '@/components/dashboard/page-layout'
+import { DashboardCard, DashboardCardDescription, DashboardCardTitle, DashboardStatCard } from '@/components/dashboard/surface'
 
 interface Guest {
   id: string
@@ -103,6 +106,11 @@ export default function GuestsEmailsPage() {
 
   const load = useCallback(async () => {
     setError(null)
+    const userId = await guardEvent(id)
+    if (!userId) {
+      setError('You do not have access to this event.')
+      return
+    }
     try {
       const [{ data: guestData, error: err1 }, { data: ev, error: err2 }, { data: profile }] = await Promise.all([
         supabase.from('guests').select('*').eq('event_id', id).order('name'),
@@ -180,46 +188,40 @@ export default function GuestsEmailsPage() {
   const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>Emails</h1>
-        <p className="text-sm" style={{ color: '#8B8670' }}>Send invitation emails and follow-ups to your guest list</p>
-      </div>
+    <DashboardPage width="wide">
+      <DashboardPageHeader
+        title="Emails"
+        description="Send invitation emails and follow-ups to your guest list"
+        className="mb-6"
+      />
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4 md:mb-6">
         {[
           { label: 'Total guests', value: guests.length },
           { label: 'Invited', value: guests.filter(g => g.invited_at).length },
           { label: 'Not yet invited', value: guests.filter(g => !g.invited_at).length },
         ].map(({ label, value }) => (
-          <div key={label} className="rounded-2xl border p-3 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
-            <p className="text-xs mb-2" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-xl md:text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
-          </div>
+          <DashboardStatCard
+            key={label}
+            label={label}
+            value={value}
+            sub=""
+            className="[&>p:last-child]:hidden"
+          />
         ))}
       </div>
 
       {error ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
-          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
-          <button
-            onClick={load}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: '#2C2B26', color: '#FAFAF7' }}
-          >
-            Try again
-          </button>
-        </div>
+        <DashboardErrorState message={error} onRetry={() => void load()} />
       ) : (
       <>
       {/* Two-column layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
         {/* Left: compose */}
-        <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+        <DashboardCard className="overflow-hidden">
           <div className="px-6 py-5 border-b" style={{ borderColor: '#F0EDE8' }}>
-            <p className="text-sm font-semibold" style={{ color: '#2C2B26' }}>Compose</p>
+            <DashboardCardTitle>Compose</DashboardCardTitle>
           </div>
           <div className="p-6 flex flex-col gap-5">
 
@@ -296,13 +298,13 @@ export default function GuestsEmailsPage() {
               )}
             </button>
           </div>
-        </div>
+        </DashboardCard>
 
         {/* Right: preview */}
-        <div className="hidden md:block rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+        <DashboardCard className="hidden md:block overflow-hidden">
           {/* Mock email chrome */}
           <div className="px-6 py-5 border-b" style={{ borderColor: '#F0EDE8' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: '#2C2B26' }}>Preview</p>
+            <DashboardCardTitle className="mb-3">Preview</DashboardCardTitle>
             <div className="flex flex-col gap-1.5 text-xs" style={{ color: '#8B8670' }}>
               <div className="flex gap-2">
                 <span style={{ color: '#B5A98A', minWidth: 40 }}>From</span>
@@ -329,14 +331,17 @@ export default function GuestsEmailsPage() {
               </div>
             )}
           </div>
-        </div>
+        </DashboardCard>
 
       </div>
 
       {/* Guests without email */}
       {guests.filter(g => !g.email).length > 0 && (
-        <div className="mt-6 rounded-2xl border p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
-          <p className="text-sm font-medium mb-3" style={{ color: '#2C2B26' }}>Guests without an email address</p>
+        <DashboardCard className="mt-6 p-5">
+          <DashboardCardTitle className="mb-3">Guests without an email address</DashboardCardTitle>
+          <DashboardCardDescription className="mb-3">
+            These guests will be skipped until an email address is added.
+          </DashboardCardDescription>
           <div className="flex flex-wrap gap-2">
             {guests.filter(g => !g.email).map(g => (
               <div key={g.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs" style={{ background: '#F5F0E8', color: '#8B8670' }}>
@@ -345,10 +350,10 @@ export default function GuestsEmailsPage() {
               </div>
             ))}
           </div>
-        </div>
+        </DashboardCard>
       )}
       </>
       )}
-    </div>
+    </DashboardPage>
   )
 }

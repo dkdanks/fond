@@ -76,7 +76,7 @@ export default async function PreviewEventPage({
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Event not found</p>
           <p style={{ fontSize: '0.875rem', opacity: 0.5 }}>This event may have been deleted or you may not have access.</p>
-          <a href="/events" style={{ display: 'inline-block', marginTop: '1.5rem', fontSize: '0.875rem', textDecoration: 'underline', opacity: 0.6 }}>Back to events</a>
+          <Link href="/events" style={{ display: 'inline-block', marginTop: '1.5rem', fontSize: '0.875rem', textDecoration: 'underline', opacity: 0.6 }}>Back to events</Link>
         </div>
       </div>
     )

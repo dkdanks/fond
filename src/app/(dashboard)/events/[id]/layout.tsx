@@ -1,5 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { requireOwnedEvent } from '@/lib/dashboard-server'
 import { AppSidebar } from '@/components/app/sidebar'
 
 export default async function EventLayout({
@@ -10,19 +9,7 @@ export default async function EventLayout({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: event } = await supabase
-    .from('events')
-    .select('id, user_id')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!event) notFound()
+  const { user } = await requireOwnedEvent(id, 'id, user_id')
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#FAFAF7' }}>

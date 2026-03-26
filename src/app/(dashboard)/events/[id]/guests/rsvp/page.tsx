@@ -1,9 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, GripVertical, Check, ChevronDown } from 'lucide-react'
+import { DashboardPage, DashboardPageHeader, DashboardSaveStatus } from '@/components/dashboard/page-layout'
+import { DashboardCard, DashboardCardDescription, DashboardCardTitle } from '@/components/dashboard/surface'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface RsvpQuestion {
   id: string
@@ -38,15 +40,25 @@ export default function RsvpPage() {
   const [saved, setSaved] = useState(false)
   const [newOption, setNewOption] = useState<Record<string, string>>({})
 
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('events').select('content').eq('id', id).single()
-    const content = data?.content as Record<string, unknown> | null
-    if (content?.rsvp_questions) {
-      setQuestions(content.rsvp_questions as RsvpQuestion[])
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadQuestions() {
+      const { data } = await supabase.from('events').select('content').eq('id', id).single()
+      if (cancelled) return
+
+      const content = data?.content as Record<string, unknown> | null
+      if (content?.rsvp_questions) {
+        setQuestions(content.rsvp_questions as RsvpQuestion[])
+      }
+    }
+
+    void loadQuestions()
+
+    return () => {
+      cancelled = true
     }
   }, [id, supabase])
-
-  useEffect(() => { load() }, [load])
 
   async function save(qs: RsvpQuestion[]) {
     setSaving(true)
@@ -98,20 +110,16 @@ export default function RsvpPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-semibold" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>RSVP</h1>
-        <span className="text-xs transition-all" style={{ color: saving ? '#B5A98A' : saved ? '#4CAF50' : 'transparent' }}>
-          {saving ? 'Saving…' : 'Saved'}
-        </span>
-      </div>
-      <p className="text-sm mb-8" style={{ color: '#8B8670' }}>
-        Configure the questions your guests will answer when they RSVP.
-      </p>
+    <DashboardPage width="narrow" className="md:px-8">
+      <DashboardPageHeader
+        title="RSVP"
+        description="Configure the questions your guests will answer when they RSVP."
+        actions={<DashboardSaveStatus state={saving ? 'saving' : saved ? 'saved' : 'idle'} />}
+      />
 
       <div className="flex flex-col gap-3 mb-6">
         {questions.map((q, idx) => (
-          <div
+          <DashboardCard
             key={q.id}
             className="rounded-2xl border p-4 flex flex-col gap-3"
             style={{ background: 'white', borderColor: '#E8E3D9' }}
@@ -207,7 +215,7 @@ export default function RsvpPage() {
                 </div>
               </div>
             )}
-          </div>
+          </DashboardCard>
         ))}
       </div>
 
@@ -246,12 +254,12 @@ export default function RsvpPage() {
         </button>
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: '#F0EDE8' }}>
-        <p className="text-xs font-medium mb-1" style={{ color: '#2C2B26' }}>How it works</p>
-        <p className="text-xs leading-relaxed" style={{ color: '#8B8670' }}>
+      <DashboardCard tone="highlight" className="p-4">
+        <DashboardCardTitle className="mb-1 text-xs">How it works</DashboardCardTitle>
+        <DashboardCardDescription className="leading-relaxed">
           These questions appear on your RSVP page when guests respond. Their answers will be shown in the guest list and can help you plan catering, seating and more.
-        </p>
-      </div>
-    </div>
+        </DashboardCardDescription>
+      </DashboardCard>
+    </DashboardPage>
   )
 }

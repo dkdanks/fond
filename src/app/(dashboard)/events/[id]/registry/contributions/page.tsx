@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { guardEvent } from '@/lib/event-guard'
 import { formatCurrency, type Contribution } from '@/types'
 import { Mail, Check, X, Search, CheckCircle2, Clock } from 'lucide-react'
 import { useToast } from '@/components/app/toast-provider'
 import { SkeletonRow } from '@/components/app/skeleton'
+import { Pagination } from '@/components/app/pagination'
+import { DashboardErrorState, DashboardPage, DashboardPageHeader } from '@/components/dashboard/page-layout'
+import { DashboardCardDescription, DashboardCardTitle, DashboardStatCard } from '@/components/dashboard/surface'
+
+const PAGE_SIZE = 25
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +168,12 @@ export default function ContributionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterTab>('all')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  // Stats for the full dataset (not current page)
+  const [statsTotalCount, setStatsTotalCount] = useState(0)
+  const [statsTotalAmount, setStatsTotalAmount] = useState(0)
+  const [statsThankedCount, setStatsThankedCount] = useState(0)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [thankModal, setThankModal] = useState<Contribution[] | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
@@ -171,12 +183,33 @@ export default function ContributionsPage() {
   const [thankedIds, setThankedIds] = useState<Set<string>>(new Set())
   const lsKey = `thanked-${id}`
 
-  const load = useCallback(async () => {
+  // Stable load — all params explicit so useCallback deps stay minimal
+  const load = useCallback(async (p: number, s: string) => {
     setLoading(true)
     setError(null)
+    const userId = await guardEvent(id)
+    if (!userId) {
+      setError('You do not have access to this event.')
+      setLoading(false)
+      return
+    }
     try {
-      const [{ data: contribs, error: err1 }, { data: poolData, error: err2 }] = await Promise.all([
-        supabase.from('contributions').select('*').eq('event_id', id).order('created_at', { ascending: false }),
+      let query = supabase
+        .from('contributions')
+        .select('*', { count: 'exact' })
+        .eq('event_id', id)
+        .order('created_at', { ascending: false })
+
+      if (s.trim()) {
+        query = query.or(
+          `contributor_name.ilike.%${s.trim()}%,contributor_email.ilike.%${s.trim()}%`
+        )
+      }
+
+      query = query.range((p - 1) * PAGE_SIZE, p * PAGE_SIZE - 1)
+
+      const [{ data: contribs, error: err1, count }, { data: poolData, error: err2 }] = await Promise.all([
+        query,
         supabase.from('registry_pools').select('id, title').eq('event_id', id),
       ])
       if (err1) throw err1
@@ -185,6 +218,17 @@ export default function ContributionsPage() {
       const rows = (contribs ?? []) as Contribution[]
       setContributions(rows)
       setPools((poolData ?? []) as Pool[])
+      setTotal(count ?? 0)
+
+      // Stats: fetch full table for accurate counts/amounts
+      const { data: allContribsData } = await supabase
+        .from('contributions')
+        .select('id, amount')
+        .eq('event_id', id)
+
+      const allContribs = allContribsData ?? []
+      setStatsTotalCount(allContribs.length)
+      setStatsTotalAmount(allContribs.reduce((sum, c) => sum + (c.amount ?? 0), 0))
 
       // Build thanked set: prefer thanked_at column, fall back to localStorage
       const dbThanked = new Set(
@@ -196,6 +240,9 @@ export default function ContributionsPage() {
       const lsThanked: string[] = lsRaw ? JSON.parse(lsRaw) : []
       const combined = new Set([...dbThanked, ...lsThanked])
       setThankedIds(combined)
+      setStatsThankedCount(
+        allContribs.filter(c => combined.has(c.id)).length
+      )
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -204,7 +251,39 @@ export default function ContributionsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  useEffect(() => { load() }, [load])
+  // Initial load
+  useEffect(() => { load(1, '') }, [load])
+
+  // Reload when page changes; clear selection
+  const isFirstPageRender = useRef(true)
+  useEffect(() => {
+    if (isFirstPageRender.current) { isFirstPageRender.current = false; return }
+    setSelected(new Set())
+    load(page, search)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
+
+  // Reload when filter changes, reset page to 1
+  // Note: thanked filter is applied client-side since it depends on local thankedIds state
+  const isFirstFilterRender = useRef(true)
+  useEffect(() => {
+    if (isFirstFilterRender.current) { isFirstFilterRender.current = false; return }
+    setPage(1)
+    load(1, search)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter])
+
+  // Debounced search: reset page to 1 and reload
+  const isFirstSearchRender = useRef(true)
+  useEffect(() => {
+    if (isFirstSearchRender.current) { isFirstSearchRender.current = false; return }
+    const timer = setTimeout(() => {
+      setPage(1)
+      load(1, search)
+    }, 300)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
 
   useEffect(() => {
     if (!thankModal) {
@@ -216,23 +295,21 @@ export default function ContributionsPage() {
 
   const poolMap = Object.fromEntries(pools.map(p => [p.id, p.title]))
 
-  const filtered = contributions.filter(c => {
-    const isThanked = thankedIds.has(c.id)
-    if (filter === 'thanked' && !isThanked) return false
-    if (filter === 'not_thanked' && isThanked) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return (
-        c.contributor_name.toLowerCase().includes(q) ||
-        (c.contributor_email ?? '').toLowerCase().includes(q)
-      )
-    }
-    return true
-  })
+  // contributions IS the current page (filtered by search server-side)
+  // Client-side thanked filter applied on top of the page slice
+  const filtered = filter === 'all'
+    ? contributions
+    : contributions.filter(c => {
+        const isThanked = thankedIds.has(c.id)
+        if (filter === 'thanked') return isThanked
+        if (filter === 'not_thanked') return !isThanked
+        return true
+      })
 
-  const totalAmount = contributions.reduce((s, c) => s + c.amount, 0)
-  const thankedCount = contributions.filter(c => thankedIds.has(c.id)).length
-  const notThankedCount = contributions.length - thankedCount
+  // Stats use full-dataset counts from server
+  const totalAmount = statsTotalAmount
+  const thankedCount = statsThankedCount
+  const notThankedCount = statsTotalCount - statsThankedCount
 
   // ─── Selection helpers ───────────────────────────────────────────────────
 
@@ -257,7 +334,8 @@ export default function ContributionsPage() {
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -281,35 +359,28 @@ export default function ContributionsPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   const stats = [
-    { label: 'Total contributions', value: String(contributions.length) },
+    { label: 'Total contributions', value: String(statsTotalCount) },
     { label: 'Total amount', value: formatCurrency(totalAmount) },
     { label: 'Thanked', value: String(thankedCount) },
     { label: 'Not yet thanked', value: String(notThankedCount) },
   ]
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>
-          Contributions
-        </h1>
-        <p className="text-sm" style={{ color: '#8B8670' }}>
-          Track gift contributions and send thank-you notes.
-        </p>
-      </div>
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Contributions"
+        description="Track gift contributions and send thank-you notes."
+      />
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {stats.map(({ label, value }) => (
-          <div
+          <DashboardStatCard
             key={label}
-            className="rounded-2xl border p-3 md:p-5"
-            style={{ background: 'white', borderColor: '#E8E3D9' }}
-          >
-            <p className="text-xs font-medium mb-2" style={{ color: '#B5A98A' }}>{label}</p>
-            <p className="text-xl md:text-2xl font-semibold" style={{ color: '#2C2B26' }}>{value}</p>
-          </div>
+            label={label}
+            value={value}
+            sub=""
+            className="[&>p:last-child]:hidden"
+          />
         ))}
       </div>
 
@@ -350,16 +421,7 @@ export default function ContributionsPage() {
 
       {/* Table */}
       {error ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-24 text-center px-4">
-          <p className="text-sm mb-4" style={{ color: '#8B8670' }}>{error}</p>
-          <button
-            onClick={load}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: '#2C2B26', color: '#FAFAF7' }}
-          >
-            Try again
-          </button>
-        </div>
+        <DashboardErrorState message={error} onRetry={() => void load(page, search)} />
       ) : (
       <div className="rounded-2xl border overflow-x-auto" style={{ background: 'white', borderColor: '#E8E3D9' }}>
         {loading ? (
@@ -373,10 +435,10 @@ export default function ContributionsPage() {
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#F5F0E8' }}>
               <Mail size={20} style={{ color: '#B5A98A' }} />
             </div>
-            <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>No contributions yet</p>
-            <p className="text-xs" style={{ color: '#B5A98A' }}>
+            <DashboardCardTitle className="mb-1">No contributions yet</DashboardCardTitle>
+            <DashboardCardDescription style={{ color: '#B5A98A' }}>
               {search ? 'No results match your search.' : 'Contributions will appear here once guests start gifting.'}
-            </p>
+            </DashboardCardDescription>
           </div>
         ) : (
           <table className="w-full text-sm" style={{ minWidth: 680 }}>
@@ -497,6 +559,7 @@ export default function ContributionsPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
       </div>
       )}
 
@@ -540,6 +603,6 @@ export default function ContributionsPage() {
           onSend={ids => markThanked(ids)}
         />
       )}
-    </div>
+    </DashboardPage>
   )
 }

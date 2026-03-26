@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { Phone } from 'lucide-react'
 
@@ -26,11 +26,13 @@ function trapFocus(e: React.KeyboardEvent<HTMLDivElement>) {
 }
 
 export function HelpModal({ open, onClose }: HelpModalProps) {
-  const [mounted, setMounted] = useState(false)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
   const triggerRef = useRef<HTMLElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
-
-  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (open) {

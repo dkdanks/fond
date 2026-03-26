@@ -1,13 +1,36 @@
 'use client'
 
-declare const google: any
-
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { DashboardPage, DashboardPageHeader, DashboardSectionLabel } from '@/components/dashboard/page-layout'
+import { DashboardCard } from '@/components/dashboard/surface'
+import { guardEvent } from '@/lib/event-guard'
 import type { Event, EventType } from '@/types'
 import { EVENT_TYPE_LABELS } from '@/types'
 import { Trash2 } from 'lucide-react'
+
+type GoogleAutocomplete = {
+  getPlace: () => { formatted_address?: string; name?: string } | undefined
+  addListener: (eventName: string, handler: () => void) => void
+}
+
+type GoogleMapsPlaces = {
+  Autocomplete: new (
+    input: HTMLInputElement,
+    options: { types: string[] }
+  ) => GoogleAutocomplete
+}
+
+declare global {
+  interface Window {
+    google?: {
+      maps?: {
+        places?: GoogleMapsPlaces
+      }
+    }
+  }
+}
 
 const TIMEZONES = [
   'Australia/Sydney',
@@ -27,7 +50,6 @@ const TIMEZONES = [
 const inputCls = 'w-full px-3 py-2.5 text-sm rounded-xl border outline-none transition-colors focus:border-[#2C2B26]'
 const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }
 const labelStyle: React.CSSProperties = { color: '#8B8670' }
-const sectionHeaderStyle: React.CSSProperties = { color: '#B5A98A' }
 const cardStyle: React.CSSProperties = { background: 'white', borderColor: '#E8E3D9' }
 
 export default function SettingsPage() {
@@ -46,14 +68,49 @@ export default function SettingsPage() {
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const [savedField, setSavedField] = useState<string | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-
   const locationInputRef = useRef<HTMLInputElement>(null)
   const slugDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const autocompleteRef = useRef<any>(null)
+  const autocompleteRef = useRef<GoogleAutocomplete | null>(null)
+
+  const autoSave = useCallback(async (patch: Record<string, unknown>) => {
+    await supabase.from('events').update(patch as Record<string, unknown>).eq('id', id)
+  }, [id, supabase])
+
+  const autoSaveContent = useCallback(async (contentPatch: Record<string, unknown>) => {
+    const { data: ev } = await supabase.from('events').select('content').eq('id', id).single()
+    const existing = (ev?.content as Record<string, unknown>) ?? {}
+    await supabase.from('events').update({ content: { ...existing, ...contentPatch } } as Record<string, unknown>).eq('id', id)
+  }, [id, supabase])
+
+  const initAutocomplete = useCallback(() => {
+    const googleMaps = window.google?.maps?.places
+    if (!googleMaps || !locationInputRef.current || autocompleteRef.current) return
+
+    try {
+      autocompleteRef.current = new googleMaps.Autocomplete(locationInputRef.current, {
+        types: ['geocode', 'establishment'],
+      })
+      autocompleteRef.current.addListener('place_changed', () => {
+        const place = autocompleteRef.current?.getPlace()
+        const addr = place?.formatted_address ?? place?.name ?? ''
+        if (addr) {
+          setLocation(addr)
+          void autoSave({ location: addr })
+        }
+      })
+    } catch {
+      // Google Maps may still be booting; retry on the next effect pass.
+    }
+  }, [autoSave])
 
   // Load event
   useEffect(() => {
-    supabase.from('events').select('*').eq('id', id).single().then(({ data }) => {
+    async function load() {
+      const userId = await guardEvent(id)
+      if (!userId) {
+        return
+      }
+      const { data } = await supabase.from('events').select('*').eq('id', id).single()
       if (data) {
         setEvent(data)
         setTitle(data.title ?? '')
@@ -70,8 +127,9 @@ export default function SettingsPage() {
         setHostName((content?.host_name as string) ?? '')
         setSlug(data.slug ?? '')
       }
-    })
-  }, [id])
+    }
+    load()
+  }, [id, supabase])
 
   // Load Google Maps script
   useEffect(() => {
@@ -87,50 +145,19 @@ export default function SettingsPage() {
     script.async = true
     script.onload = () => initAutocomplete()
     document.head.appendChild(script)
-  }, [])
-
-  // Init autocomplete once both script is loaded and input is mounted
-  function initAutocomplete() {
-    if (!locationInputRef.current) return
-    if (autocompleteRef.current) return
-    try {
-      autocompleteRef.current = new google.maps.places.Autocomplete(locationInputRef.current, {
-        types: ['geocode', 'establishment'],
-      })
-      autocompleteRef.current.addListener('place_changed', () => {
-        const place = autocompleteRef.current.getPlace()
-        const addr = place?.formatted_address ?? place?.name ?? ''
-        if (addr) {
-          setLocation(addr)
-          autoSave({ location: addr })
-        }
-      })
-    } catch (_) {
-      // google maps not yet available
-    }
-  }
+  }, [initAutocomplete])
 
   // Re-init if input appears after script already loaded
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return
-    if (typeof google !== 'undefined' && locationInputRef.current && !autocompleteRef.current) {
+    if (window.google?.maps?.places && locationInputRef.current && !autocompleteRef.current) {
       initAutocomplete()
     }
-  }, [event])
+  }, [event, initAutocomplete])
 
   function flashSaved(field: string) {
     setSavedField(field)
     setTimeout(() => setSavedField(f => (f === field ? null : f)), 2000)
-  }
-
-  async function autoSave(patch: Record<string, unknown>) {
-    await supabase.from('events').update(patch as Record<string, unknown>).eq('id', id)
-  }
-
-  async function autoSaveContent(contentPatch: Record<string, unknown>) {
-    const { data: ev } = await supabase.from('events').select('content').eq('id', id).single()
-    const existing = (ev?.content as Record<string, unknown>) ?? {}
-    await supabase.from('events').update({ content: { ...existing, ...contentPatch } } as Record<string, unknown>).eq('id', id)
   }
 
   // Slug availability check (debounced)
@@ -176,14 +203,12 @@ export default function SettingsPage() {
   if (!event) return <p className="text-sm px-8 py-8" style={{ color: '#B5A98A' }}>Loading…</p>
 
   return (
-    <div className="px-8 py-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>Settings</h1>
-      </div>
+    <DashboardPage width="narrow" className="md:px-8">
+      <DashboardPageHeader title="Settings" />
 
       {/* Event details */}
-      <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={sectionHeaderStyle}>Event details</p>
-      <div className="rounded-2xl border p-6 mb-4" style={cardStyle}>
+      <DashboardSectionLabel>Event details</DashboardSectionLabel>
+      <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
         {/* Title */}
         <div className="mb-4">
           <label className="block text-xs font-medium mb-1.5" style={labelStyle}>Event title</label>
@@ -289,11 +314,11 @@ export default function SettingsPage() {
           </select>
           {savedField === 'timezone' && <p className="text-xs mt-1" style={{ color: '#4CAF50' }}>Saved</p>}
         </div>
-      </div>
+      </DashboardCard>
 
       {/* Host */}
-      <p className="text-xs font-semibold uppercase tracking-wide mb-4 mt-6" style={sectionHeaderStyle}>Host</p>
-      <div className="rounded-2xl border p-6 mb-4" style={cardStyle}>
+      <DashboardSectionLabel className="mt-6">Host</DashboardSectionLabel>
+      <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
         <div>
           <label className="block text-xs font-medium mb-1.5" style={labelStyle}>Host name</label>
           <input
@@ -309,11 +334,11 @@ export default function SettingsPage() {
           />
           {savedField === 'hostName' && <p className="text-xs mt-1" style={{ color: '#4CAF50' }}>Saved</p>}
         </div>
-      </div>
+      </DashboardCard>
 
       {/* URL & slug */}
-      <p className="text-xs font-semibold uppercase tracking-wide mb-4 mt-6" style={sectionHeaderStyle}>Event URL</p>
-      <div className="rounded-2xl border p-6 mb-4" style={cardStyle}>
+      <DashboardSectionLabel className="mt-6">Event URL</DashboardSectionLabel>
+      <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
         <div>
           <label className="block text-xs font-medium mb-1.5" style={labelStyle}>Shareable slug</label>
           <div className="flex items-center rounded-xl border overflow-hidden" style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}>
@@ -354,11 +379,11 @@ export default function SettingsPage() {
           )}
           {savedField === 'slug' && <p className="text-xs mt-1" style={{ color: '#4CAF50' }}>Saved</p>}
         </div>
-      </div>
+      </DashboardCard>
 
       {/* Publish / Draft toggle */}
-      <p className="text-xs font-semibold uppercase tracking-wide mb-4 mt-6" style={sectionHeaderStyle}>Visibility</p>
-      <div className="rounded-2xl border p-6 mb-4" style={cardStyle}>
+      <DashboardSectionLabel className="mt-6">Visibility</DashboardSectionLabel>
+      <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>
@@ -382,10 +407,10 @@ export default function SettingsPage() {
           </button>
         </div>
         {savedField === 'status' && <p className="text-xs mt-3" style={{ color: '#4CAF50' }}>Saved</p>}
-      </div>
+      </DashboardCard>
 
       {/* Danger zone */}
-      <p className="text-xs font-semibold uppercase tracking-wide mb-4 mt-6" style={{ color: '#EF4444', opacity: 0.7 }}>Danger zone</p>
+      <DashboardSectionLabel tone="danger" className="mt-6">Danger zone</DashboardSectionLabel>
       <div className="rounded-2xl border p-6 mb-4" style={{ background: 'white', borderColor: '#FECACA' }}>
         <div className="flex items-center justify-between">
           <div>
@@ -436,6 +461,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

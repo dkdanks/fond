@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
@@ -204,11 +205,13 @@ function FundVisual({ active }: { active: boolean }) {
       }}>
         {/* Image */}
         <div style={{ height: 110, position: 'relative', overflow: 'hidden' }}>
-          <img
+          <Image
             src="/images/cabin.jpg"
             alt=""
             aria-hidden
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 40%' }}
+            fill
+            sizes="280px"
+            style={{ objectFit: 'cover', objectPosition: 'center 40%' }}
           />
           <div style={{
             position: 'absolute', inset: 0,

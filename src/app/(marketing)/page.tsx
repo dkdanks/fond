@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Image from 'next/image'
 import { FooterType } from '@/components/marketing/footer-type'
 import { StartCTA } from '@/components/marketing/start-cta'
 import { HowItWorks } from '@/components/marketing/how-it-works'
@@ -38,12 +38,14 @@ export default function LandingPage() {
       <HowItWorks />
 
       {/* ── Photo break ── */}
-      <div className="w-full" style={{ height: 420 }}>
-        <img
+      <div className="w-full relative" style={{ height: 420 }}>
+        <Image
           src="/images/table.jpg"
           alt=""
           aria-hidden
-          className="w-full h-full object-cover"
+          fill
+          sizes="100vw"
+          className="object-cover"
           style={{ objectPosition: 'center 60%' }}
         />
       </div>

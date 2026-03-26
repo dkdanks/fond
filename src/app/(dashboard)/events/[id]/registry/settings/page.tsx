@@ -1,8 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { DashboardPage, DashboardPageHeader, DashboardSaveStatus } from '@/components/dashboard/page-layout'
+import { DashboardCard, DashboardCardDescription, DashboardCardTitle } from '@/components/dashboard/surface'
+import { RegistryToggle as Toggle } from '@/components/registry/forms'
 
 interface RegistrySettings {
   show_amounts: boolean
@@ -16,21 +19,6 @@ const DEFAULT_SETTINGS: RegistrySettings = {
   payout_details: '',
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div
-      onClick={() => onChange(!on)}
-      className="w-10 h-6 rounded-full transition-colors relative shrink-0 mt-0.5 cursor-pointer"
-      style={{ background: on ? '#2C2B26' : '#E8E3D9' }}
-    >
-      <div
-        className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200"
-        style={{ transform: on ? 'translateX(17px)' : 'translateX(2px)' }}
-      />
-    </div>
-  )
-}
-
 export default function RegistrySettingsPage() {
   const { id } = useParams<{ id: string }>()
   const supabase = createClient()
@@ -38,15 +26,23 @@ export default function RegistrySettingsPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('events').select('content').eq('id', id).single()
-    if (data?.content) {
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSettings() {
+      const { data } = await supabase.from('events').select('content').eq('id', id).single()
+      if (cancelled || !data?.content) return
+
       const s = (data.content as Record<string, unknown>)?.registry_settings as Partial<RegistrySettings> | undefined
       if (s) setSettings({ ...DEFAULT_SETTINGS, ...s })
     }
-  }, [id, supabase])
 
-  useEffect(() => { load() }, [load])
+    void loadSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, supabase])
 
   function save(updated: RegistrySettings) {
     setSettings(updated)
@@ -64,40 +60,26 @@ export default function RegistrySettingsPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-2xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold mb-1" style={{ color: '#2C2B26', letterSpacing: '-0.02em' }}>
-            Registry settings
-          </h1>
-          <p className="text-sm" style={{ color: '#8B8670' }}>Configure how your registry appears to guests</p>
-        </div>
-        <span
-          className="text-xs transition-all"
-          style={{
-            color: saveState === 'saving' ? '#B5A98A' : saveState === 'saved' ? '#4CAF50' : 'transparent',
-          }}
-        >
-          {saveState === 'saving' ? 'Saving…' : 'Saved'}
-        </span>
-      </div>
+    <DashboardPage width="narrow" className="md:px-8">
+      <DashboardPageHeader
+        title="Registry settings"
+        description="Configure how your registry appears to guests"
+        actions={<DashboardSaveStatus state={saveState} />}
+      />
 
-      <div
-        className="rounded-2xl border divide-y"
-        style={{ background: 'white', borderColor: '#E8E3D9' }}
-      >
+      <DashboardCard className="divide-y">
         {/* Show amounts */}
         <div className="flex items-start justify-between gap-4 p-6">
           <div>
-            <p className="text-sm font-medium mb-0.5" style={{ color: '#2C2B26' }}>Show amounts to guests</p>
-            <p className="text-xs" style={{ color: '#8B8670' }}>Display dollar values on your registry page</p>
+            <DashboardCardTitle className="mb-0.5">Show amounts to guests</DashboardCardTitle>
+            <DashboardCardDescription>Display dollar values on your registry page</DashboardCardDescription>
           </div>
           <Toggle on={settings.show_amounts} onChange={v => save({ ...settings, show_amounts: v })} />
         </div>
 
         {/* Progress display */}
         <div className="p-6">
-          <p className="text-sm font-medium mb-4" style={{ color: '#2C2B26' }}>Progress display</p>
+          <DashboardCardTitle className="mb-4">Progress display</DashboardCardTitle>
           <div className="flex flex-col gap-2">
             {([
               { val: 'percentage', label: 'Percentage', sub: 'e.g. 45%' },
@@ -113,7 +95,7 @@ export default function RegistrySettingsPage() {
                   borderColor: settings.progress_display === val ? '#2C2B26' : '#E8E3D9',
                   background: settings.progress_display === val ? '#F5F0E8' : '#FAFAF7',
                 }}
-              >
+                >
                 <div
                   className="w-4 h-4 rounded-full border-2 flex items-center justify-center mt-0.5 shrink-0"
                   style={{ borderColor: settings.progress_display === val ? '#2C2B26' : '#D4CCBC' }}
@@ -123,8 +105,8 @@ export default function RegistrySettingsPage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>{label}</p>
-                  <p className="text-xs" style={{ color: '#8B8670' }}>{sub}</p>
+                  <DashboardCardTitle>{label}</DashboardCardTitle>
+                  <DashboardCardDescription>{sub}</DashboardCardDescription>
                 </div>
               </button>
             ))}
@@ -133,10 +115,10 @@ export default function RegistrySettingsPage() {
 
         {/* Payout details */}
         <div className="p-6">
-          <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Payout details</p>
-          <p className="text-xs mb-3" style={{ color: '#8B8670' }}>
+          <DashboardCardTitle className="mb-1">Payout details</DashboardCardTitle>
+          <DashboardCardDescription className="mb-3">
             How you&apos;d like to receive funds — bank details, PayID, etc. Visible only to you.
-          </p>
+          </DashboardCardDescription>
           <textarea
             className="w-full px-3 py-2.5 text-sm rounded-xl border outline-none resize-none"
             style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26', minHeight: 100 }}
@@ -149,8 +131,8 @@ export default function RegistrySettingsPage() {
         {/* Currency */}
         <div className="flex items-center justify-between p-6">
           <div>
-            <p className="text-sm font-medium mb-0.5" style={{ color: '#2C2B26' }}>Currency</p>
-            <p className="text-xs" style={{ color: '#8B8670' }}>All amounts are displayed in this currency</p>
+            <DashboardCardTitle className="mb-0.5">Currency</DashboardCardTitle>
+            <DashboardCardDescription>All amounts are displayed in this currency</DashboardCardDescription>
           </div>
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium"
@@ -159,7 +141,7 @@ export default function RegistrySettingsPage() {
             AUD — Australian Dollar
           </div>
         </div>
-      </div>
-    </div>
+      </DashboardCard>
+    </DashboardPage>
   )
 }
