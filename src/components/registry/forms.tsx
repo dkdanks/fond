@@ -134,7 +134,7 @@ export function AddItemForm({
         </div>
         <div className="col-span-2">
           <RegistryLabel>Photo <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
-          <ImageUploadInput value={newImage} onChange={onImageChange} eventId={eventId} supabase={supabase} showPreview />
+          <ImageUploadInput value={newImage} onChange={onImageChange} eventId={eventId} supabase={supabase} profile="card" showPreview />
         </div>
       </div>
       <div className="flex justify-end mt-4">

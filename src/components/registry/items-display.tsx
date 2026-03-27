@@ -128,7 +128,7 @@ export function RegistryItemsDisplay({
                           <div><RegistryLabel>Description</RegistryLabel><input className={inputCls} style={inputStyle} placeholder="Optional" value={editDesc} onChange={event => onEditDescChange(event.target.value)} /></div>
                           <div><RegistryLabel>Amount ($)</RegistryLabel><input type="number" min="1" step="0.01" className={inputCls} style={inputStyle} placeholder="Leave blank for open-ended" value={editAmount} onChange={event => onEditAmountChange(event.target.value)} /></div>
                           <div><RegistryLabel>Group</RegistryLabel><input list="edit-groups-list" className={inputCls} style={inputStyle} placeholder="Group name" value={editGroup} onChange={event => onEditGroupChange(event.target.value)} /><datalist id="edit-groups-list">{groups.map(groupName => <option key={groupName} value={groupName} />)}</datalist></div>
-                          <div><RegistryLabel>Photo</RegistryLabel><ImageUploadInput value={editImage} onChange={onEditImageChange} eventId={eventId} supabase={supabase} showPreview /></div>
+                          <div><RegistryLabel>Photo</RegistryLabel><ImageUploadInput value={editImage} onChange={onEditImageChange} eventId={eventId} supabase={supabase} profile="card" showPreview /></div>
                           <div className="flex gap-2 pt-1">
                             <button onClick={() => onSaveEdit(item.id)} disabled={editSaving} className="flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1" style={{ background: '#2C2B26', color: 'white' }}>
                               {editSaving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} {editSaving ? 'Saving…' : 'Save'}

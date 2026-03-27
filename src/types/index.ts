@@ -2,6 +2,24 @@ export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming' |
 export type RsvpStatus = 'pending' | 'attending' | 'declined'
 export type ContributionStatus = 'pending' | 'completed' | 'refunded'
 export type EventStatus = 'draft' | 'published'
+export type ImageUploadProfile = 'hero' | 'section' | 'avatar' | 'card'
+
+export interface UploadedImageAsset {
+  url: string
+  path: string
+  width: number
+  height: number
+  bytes: number
+  content_type: string
+  original_name: string
+  profile: ImageUploadProfile
+}
+
+export interface ImageAdjustment {
+  x: number
+  y: number
+  zoom: number
+}
 
 export interface Profile {
   id: string
@@ -108,6 +126,7 @@ export interface EventContent {
   _section_order?: string[]
   _hidden_sections?: string[]
   _stickers?: PlacedSticker[]
+  _image_adjustments?: Record<string, ImageAdjustment>
   custom_sections?: Array<{ id: string; title: string; text?: string; images?: string[] }>
 }
 

@@ -6,6 +6,7 @@ import type { Event, EventContent, PlacedSticker, WeddingPartyMember } from '@/t
 import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
 import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
 import { resolveFontFamily } from '@/lib/font-family'
+import { customSectionImageAdjustmentKey, getImageFrameStyle, heroImageAdjustmentKey, storyImageAdjustmentKey, weddingPartyImageAdjustmentKey } from '@/lib/image-presentation'
 import { getLegacyPageStickers, getSectionStickers } from '@/lib/stickers'
 import { formatDate } from '@/lib/utils'
 
@@ -29,35 +30,43 @@ const ROLE_LABELS: Record<WeddingPartyMember['role'], string> = {
   other: 'Other',
 }
 
-function PhotoGrid({ images }: { images: string[] }) {
+function PhotoGrid({
+  images,
+  adjustments,
+  keyPrefix,
+}: {
+  images: string[]
+  adjustments?: Record<string, import('@/types').ImageAdjustment>
+  keyPrefix: (index: number) => string
+}) {
   const imgs = images.filter(Boolean)
   if (imgs.length === 0) return null
   if (imgs.length === 1) {
     return (
       <div className="mt-10">
-        <div className="aspect-[16/9] w-full rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[0]})` }} />
+        <div className="aspect-[16/9] w-full rounded-2xl bg-cover bg-center" style={getImageFrameStyle(imgs[0], adjustments?.[keyPrefix(0)])} />
       </div>
     )
   }
   if (imgs.length === 2) {
     return (
       <div className="mt-10 grid grid-cols-2 gap-3">
-        {imgs.map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />)}
+        {imgs.map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(img, adjustments?.[keyPrefix(i)])} />)}
       </div>
     )
   }
   if (imgs.length === 3) {
     return (
       <div className="mt-10 grid grid-cols-2 gap-3">
-        <div className="row-span-2 aspect-[3/4] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[0]})` }} />
-        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[1]})` }} />
-        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${imgs[2]})` }} />
+        <div className="row-span-2 aspect-[3/4] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(imgs[0], adjustments?.[keyPrefix(0)])} />
+        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(imgs[1], adjustments?.[keyPrefix(1)])} />
+        <div className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(imgs[2], adjustments?.[keyPrefix(2)])} />
       </div>
     )
   }
   return (
     <div className="mt-10 grid grid-cols-2 gap-3">
-      {imgs.slice(0, 4).map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />)}
+      {imgs.slice(0, 4).map((img, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(img, adjustments?.[keyPrefix(i)])} />)}
     </div>
   )
 }
@@ -172,6 +181,8 @@ export function EventPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const savedOrder = (content as any)._section_order as SectionKey[] | undefined
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const imageAdjustments = (content as any)._image_adjustments ?? {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hiddenSections = new Set<string>((content as any)._hidden_sections ?? [])
   const defaultOrder = SECTIONS_BY_TYPE[event.type] ?? SECTIONS_BY_TYPE.wedding
   const sectionOrder = savedOrder?.length ? savedOrder : defaultOrder
@@ -206,13 +217,13 @@ export function EventPage({
                   {c.our_story?.introduction && <p className="mb-6 text-lg font-medium leading-relaxed" style={{ fontFamily: `'${displayFont}', serif` }}>{c.our_story.introduction}</p>}
                   {c.our_story?.story && <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>}
                 </div>
-                <PhotoGrid images={c.our_story?.images ?? []} />
+                <PhotoGrid images={c.our_story?.images ?? []} adjustments={imageAdjustments} keyPrefix={storyImageAdjustmentKey} />
               </div>
             ) : (
               <div className="mx-auto max-w-2xl">
                 {c.our_story?.introduction && <p className="mb-6 text-lg font-medium leading-relaxed" style={{ fontFamily: `'${displayFont}', serif` }}>{c.our_story.introduction}</p>}
                 {c.our_story?.story && <p className="text-base leading-relaxed opacity-70">{c.our_story.story}</p>}
-                <PhotoGrid images={c.our_story?.images ?? []} />
+                <PhotoGrid images={c.our_story?.images ?? []} adjustments={imageAdjustments} keyPrefix={storyImageAdjustmentKey} />
               </div>
             )}
           </section>
@@ -263,7 +274,7 @@ export function EventPage({
               <div className="mx-auto grid max-w-2xl gap-8 md:grid-cols-2">
                 {(c.wedding_party?.members ?? []).map(m => (
                   <div key={m.id} className="flex items-start gap-5">
-                    <div className="h-24 w-24 shrink-0 rounded-2xl bg-cover bg-center" style={{ backgroundImage: m.photo_url ? `url(${m.photo_url})` : undefined, background: m.photo_url ? undefined : `${primaryColor}15` }} />
+                    <div className="h-24 w-24 shrink-0 rounded-2xl bg-cover bg-center" style={m.photo_url ? getImageFrameStyle(m.photo_url, imageAdjustments[weddingPartyImageAdjustmentKey(m.id)]) : { background: `${primaryColor}15` }} />
                     <div className="pt-1">
                       <p className="font-medium">{m.name || ROLE_LABELS[m.role]}</p>
                       <p className="mb-2 mt-0.5 text-xs opacity-40">{ROLE_LABELS[m.role]}</p>
@@ -276,7 +287,7 @@ export function EventPage({
               <div className="mx-auto grid max-w-3xl grid-cols-2 gap-6 md:grid-cols-4">
                 {(c.wedding_party?.members ?? []).map(m => (
                   <div key={m.id} className="text-center">
-                    <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-cover bg-center" style={{ backgroundImage: m.photo_url ? `url(${m.photo_url})` : undefined, background: m.photo_url ? undefined : `${primaryColor}15` }} />
+                    <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-cover bg-center" style={m.photo_url ? getImageFrameStyle(m.photo_url, imageAdjustments[weddingPartyImageAdjustmentKey(m.id)]) : { background: `${primaryColor}15` }} />
                     <p className="text-sm font-medium">{m.name || ROLE_LABELS[m.role]}</p>
                     <p className="mt-0.5 text-xs opacity-40">{ROLE_LABELS[m.role]}</p>
                     {m.story && <p className="mt-2 px-1 text-xs leading-relaxed opacity-50">{m.story}</p>}
@@ -383,7 +394,7 @@ export function EventPage({
                 {cs.images?.filter(Boolean).length > 0 && (
                   <div className="mt-8 grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(cs.images.filter(Boolean).length, 2)}, 1fr)` }}>
                     {cs.images.filter(Boolean).map((img: string, i: number) => (
-                      <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={{ backgroundImage: `url(${img})` }} />
+                      <div key={i} className="aspect-[4/3] rounded-2xl bg-cover bg-center" style={getImageFrameStyle(img, imageAdjustments[customSectionImageAdjustmentKey(csId, i)])} />
                     ))}
                   </div>
                 )}
@@ -479,9 +490,12 @@ export function EventPage({
       {!hiddenSections.has('welcome') && (() => {
         if (heroLayout === 'full-bleed') {
           const coverUrl = event.cover_image_url
+          const coverStyle = coverUrl ? getImageFrameStyle(coverUrl, imageAdjustments[heroImageAdjustmentKey()]) : undefined
           return renderSectionLayer('welcome', (
-            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${coverUrl}) center/cover no-repeat` : primaryColor, color: 'white' }}>
-              <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-20">
+            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? undefined : primaryColor, color: 'white' }}>
+              {coverUrl && <div className="absolute inset-0" style={{ ...coverStyle, backgroundColor: primaryColor }} />}
+              {coverUrl && <div className="absolute inset-0 bg-black/45" />}
+              <div className="relative mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-20">
                 <h1 className="text-4xl font-semibold md:text-5xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine && <div style={{ opacity: 0.8 }}>{metaLine}</div>}
                 {c.welcome?.greeting && <p className="max-w-xl text-lg leading-relaxed opacity-90" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
@@ -500,7 +514,7 @@ export function EventPage({
                 {c.welcome?.greeting && <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
                 {rsvpBar && <div className="flex justify-start">{rsvpBar}</div>}
               </div>
-              <div className="h-64 md:h-auto md:flex-1" style={{ background: coverUrl ? `url(${coverUrl}) center/cover no-repeat` : `${primaryColor}15` }} />
+              <div className="h-64 md:h-auto md:flex-1" style={coverUrl ? getImageFrameStyle(coverUrl, imageAdjustments[heroImageAdjustmentKey()]) : { background: `${primaryColor}15` }} />
             </section>
           ), { title: 'Click to edit Welcome' })
         }

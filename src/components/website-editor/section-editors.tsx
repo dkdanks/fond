@@ -155,6 +155,7 @@ export function StorySectionEditor({
                   placeholder="Image URL…"
                   eventId={eventId}
                   supabase={supabase}
+                  profile="section"
                   showPreview
                 />
               </div>
@@ -371,6 +372,7 @@ export function WeddingPartySectionEditor({
               placeholder="https://…"
               eventId={eventId}
               supabase={supabase}
+              profile="avatar"
               showPreview
             />
           </div>

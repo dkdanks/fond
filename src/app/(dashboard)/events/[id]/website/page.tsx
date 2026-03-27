@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronDown, ChevronRight, GripVertical, Plus, Trash2, Monitor, Smartphone,
-  Share2, X, Check, Loader2, Eye, EyeOff, ImageIcon, Sticker,
-  Home, BookOpen, CalendarDays, Users, Shirt, MapPin, Gift, HelpCircle, Crown
+  Share2, X, Check, Loader2, Eye, EyeOff, Sticker,
+  Home, BookOpen, CalendarDays, Shirt, MapPin, Gift, HelpCircle, Crown
 } from 'lucide-react'
 import type {
   Event, EventContent, EventType, ScheduleItem, FaqItem,
@@ -17,11 +17,14 @@ import { getLegacyPageStickers, getSectionStickers, mergeSectionStickers } from 
 import { formatDate } from '@/lib/utils'
 import { THEMES, getThemeById, type Theme } from '@/lib/themes'
 import { ColorPickerPopover } from '@/components/ui/color-picker-popover'
+import { ImageAdjustDialog } from '@/components/dashboard/image-adjust-dialog'
+import { ImageUploadInput } from '@/components/dashboard/image-upload-input'
 import { EventPage } from '@/components/event/event-page'
 import { StickerBrowser } from '@/components/website-editor/sticker-browser'
 import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
 import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
 import type { StickerDef } from '@/lib/stickers'
+import { customSectionImageAdjustmentKey, getImageFrameStyle, heroImageAdjustmentKey, storyImageAdjustmentKey, weddingPartyImageAdjustmentKey } from '@/lib/image-presentation'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -188,59 +191,6 @@ function CollapseSection({ label, hint, children }: { label: string; hint?: stri
           {children}
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── Image Upload Input ───────────────────────────────────────────────────────
-
-function ImageUploadInput({ value, onChange, placeholder = 'https://…', eventId, supabase }: {
-  value: string
-  onChange: (url: string) => void
-  placeholder?: string
-  eventId: string
-  supabase: ReturnType<typeof createClient>
-}) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const path = `${eventId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-      const { data, error } = await supabase.storage.from('event-images').upload(path, file, { upsert: false })
-      if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('event-images').getPublicUrl(data.path)
-      onChange(publicUrl)
-    } catch {
-      // Fall back to URL input
-    } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <input
-        className={`${inputCls} flex-1`}
-        style={inputStyle}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      />
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={uploading}
-        className="shrink-0 px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
-        style={{ borderColor: '#E8E3D9', color: '#8B8670', background: '#FAFAF7' }}
-        title="Upload from device"
-      >
-        {uploading ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
-      </button>
     </div>
   )
 }
@@ -1029,6 +979,7 @@ export default function WebsiteEditorPage() {
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
   const [stickers, setStickers] = useState<PlacedSticker[]>([])
   const [showStickerBrowser, setShowStickerBrowser] = useState(false)
+  const [imageAdjustTarget, setImageAdjustTarget] = useState<{ key: string; url: string; title: string } | null>(null)
 
   useEffect(() => {
     if (!mobileEditorOpen) return
@@ -1276,6 +1227,21 @@ export default function WebsiteEditorPage() {
     }, 50)
   }
 
+  function updateImageAdjustment(key: string, patch: Partial<NonNullable<EventContent['_image_adjustments']>[string]>) {
+    setContent(prev => {
+      const nextAdjustments = { ...(prev._image_adjustments ?? {}) }
+      const current = nextAdjustments[key] ?? { x: 50, y: 50, zoom: 1 }
+      nextAdjustments[key] = {
+        x: patch.x ?? current.x,
+        y: patch.y ?? current.y,
+        zoom: patch.zoom ?? current.zoom,
+      }
+      const next = { ...prev, _image_adjustments: nextAdjustments }
+      scheduleSave({ content: next })
+      return next
+    })
+  }
+
   function dropSection(onto: string) {
     if (!dragItem || dragItem === onto || onto === 'welcome') return
     setSectionOrder(prev => {
@@ -1342,6 +1308,7 @@ export default function WebsiteEditorPage() {
   }
 
   const eventUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/${event?.slug}`
+  const imageAdjustments = content._image_adjustments ?? {}
 
   // ── Schedule helpers ─────────────────────────────────────────────────────
   function addScheduleItem() {
@@ -1936,9 +1903,31 @@ export default function WebsiteEditorPage() {
                                   placeholder="Image URL…"
                                   eventId={id}
                                   supabase={supabase}
+                                  profile="section"
+                                  showPreview
                                 />
                               ))}
                             </div>
+                            {!!cs.images?.some(Boolean) && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {[0, 1, 2, 3].map(i => {
+                                  const url = cs.images?.[i] ?? ''
+                                  if (!url) return <div key={`custom-adjust-empty-${i}`} />
+                                  const adjustmentKey = customSectionImageAdjustmentKey(csId, i)
+                                  return (
+                                    <button
+                                      key={`custom-adjust-${i}`}
+                                      type="button"
+                                      onClick={() => setImageAdjustTarget({ key: adjustmentKey, url, title: `${cs.title || 'Custom section'} photo ${i + 1}` })}
+                                      className="aspect-[4/3] rounded-xl border text-left overflow-hidden"
+                                      style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+                                    >
+                                      <div className="h-full w-full bg-cover bg-center" style={getImageFrameStyle(url, imageAdjustments[adjustmentKey])} />
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
                           <button
                             onClick={() => removeCustomSection(csId)}
@@ -2083,6 +2072,34 @@ export default function WebsiteEditorPage() {
                               />
                               <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>The name shown at the top of your page</p>
                             </Field>
+                            <div>
+                              <Label>Cover image</Label>
+                              <ImageUploadInput
+                                value={event?.cover_image_url ?? ''}
+                                onChange={url => {
+                                  setEvent(prev => prev ? { ...prev, cover_image_url: url || null } : prev)
+                                  scheduleSave({ cover_image_url: url || null })
+                                }}
+                                placeholder="https://… or upload"
+                                eventId={id}
+                                supabase={supabase}
+                                profile="hero"
+                                showPreview
+                              />
+                              {event?.cover_image_url && (
+                                <button
+                                  type="button"
+                                  onClick={() => setImageAdjustTarget({ key: heroImageAdjustmentKey(), url: event.cover_image_url ?? '', title: 'Cover image' })}
+                                  className="mt-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                                  style={{ borderColor: '#E8E3D9', color: '#8B8670', background: '#FAFAF7' }}
+                                >
+                                  Adjust cover image
+                                </button>
+                              )}
+                              <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
+                                Used in full-bleed and split hero layouts.
+                              </p>
+                            </div>
                             <Field label="Greeting message">
                               <textarea
                                 className={textareaCls}
@@ -2163,8 +2180,7 @@ export default function WebsiteEditorPage() {
                                         className="aspect-square rounded-xl border flex items-center justify-center bg-cover bg-center overflow-hidden"
                                         style={{
                                           borderColor: '#E8E3D9',
-                                          backgroundImage: url ? `url(${url})` : undefined,
-                                          background: url ? undefined : '#FAFAF7',
+                                          ...(url ? getImageFrameStyle(url, imageAdjustments[storyImageAdjustmentKey(i)]) : { background: '#FAFAF7' }),
                                         }}
                                       >
                                         {!url && <Plus size={16} style={{ color: '#C8BFA8' }} />}
@@ -2180,7 +2196,19 @@ export default function WebsiteEditorPage() {
                                         placeholder="Image URL…"
                                         eventId={id}
                                         supabase={supabase}
+                                        profile="section"
+                                        showPreview
                                       />
+                                      {url && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setImageAdjustTarget({ key: storyImageAdjustmentKey(i), url, title: `Our story photo ${i + 1}` })}
+                                          className="rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                                          style={{ borderColor: '#E8E3D9', color: '#8B8670', background: '#FAFAF7' }}
+                                        >
+                                          Adjust
+                                        </button>
+                                      )}
                                     </div>
                                   )
                                 })}
@@ -2355,7 +2383,19 @@ export default function WebsiteEditorPage() {
                                     placeholder="https://…"
                                     eventId={id}
                                     supabase={supabase}
+                                    profile="avatar"
+                                    showPreview
                                   />
+                                  {m.photo_url && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setImageAdjustTarget({ key: weddingPartyImageAdjustmentKey(m.id), url: m.photo_url ?? '', title: `${m.name || ROLE_LABELS[m.role]} photo` })}
+                                      className="mt-2 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                                      style={{ borderColor: '#E8E3D9', color: '#8B8670', background: '#FAFAF7' }}
+                                    >
+                                      Adjust
+                                    </button>
+                                  )}
                                 </div>
                                 <div>
                                   <label className="block text-xs mb-1" style={{ color: '#B5A98A' }}>Story (optional)</label>
@@ -2648,6 +2688,18 @@ export default function WebsiteEditorPage() {
           className="md:hidden fixed inset-0 z-40"
           style={{ background: 'rgba(0,0,0,0.3)' }}
           onClick={() => setMobileEditorOpen(false)}
+        />
+      )}
+
+      {imageAdjustTarget && (
+        <ImageAdjustDialog
+          key={imageAdjustTarget.key}
+          open={true}
+          imageUrl={imageAdjustTarget.url}
+          title={imageAdjustTarget.title}
+          value={imageAdjustments[imageAdjustTarget.key]}
+          onSave={next => updateImageAdjustment(imageAdjustTarget.key, next)}
+          onClose={() => setImageAdjustTarget(null)}
         />
       )}
 
