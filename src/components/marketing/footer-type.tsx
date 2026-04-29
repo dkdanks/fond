@@ -25,7 +25,7 @@ export function FooterType() {
       ref={ref}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      className="font-semibold tracking-tighter leading-none select-none text-center w-full"
+      className="font-medium tracking-tighter leading-none select-none text-center w-full"
       style={{
         fontSize: 'clamp(80px, 22vw, 260px)',
         paddingTop: '2vw',

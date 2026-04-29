@@ -2,15 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { EventTypeCard } from './event-type-card'
-
-const EVENT_TYPES = [
-  { label: 'Wedding', description: 'Your big day, beautifully organised', href: '/wedding', accent: '#D4CCBC' },
-  { label: 'Baby Shower', description: 'Welcoming your little one', href: '/baby-shower', accent: '#C8D4C4' },
-  { label: 'Bar / Bat Mitzvah', description: 'Celebrating this milestone', href: '/mitzvah', accent: '#D8D4C8' },
-  { label: 'Housewarming', description: 'Making a house a home', href: '/housewarming', accent: '#D4C8BC' },
-  { label: 'Birthday', description: 'Another trip around the sun', href: '/birthday', accent: '#D0CCBC' },
-]
+import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export function HeroSection() {
   const [phase, setPhase] = useState<'intro' | 'main'>('intro')
@@ -41,8 +35,8 @@ export function HeroSection() {
       }}
     >
       {/*
-        Use native poster= attribute so the browser handles the still→motion
-        transition internally — no JS crossfade, no glitch.
+        Use native poster= attribute so the browser handles the still-to-motion
+        transition internally with no JS crossfade or mismatch.
         poster is extracted from frame 0 of the compressed video so they match exactly.
       */}
       <video
@@ -101,50 +95,66 @@ export function HeroSection() {
           display: 'flex', flexDirection: 'column',
           alignItems: 'center',
           width: '100%',
-          padding: '80px 24px 24px',
+          padding: '104px 24px 28px',
           pointerEvents: main ? 'auto' : 'none',
         }}
       >
-        {/* Tagline */}
-        <p
-          style={{
-            fontSize: 18,
-            color: 'rgba(255,255,255,0.78)',
-            fontWeight: 400,
-            letterSpacing: '-0.01em',
-            marginBottom: 56,
-            textAlign: 'center',
-            ...fadeUp(0),
-          }}
-        >
-          The gift registry for every celebration.
-        </p>
+        <div style={{ width: '100%', maxWidth: 860 }}>
+          <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+            <h1
+              style={{
+                fontSize: 'clamp(42px, 8vw, 82px)',
+                lineHeight: 0.96,
+                letterSpacing: '-0.065em',
+                color: '#FFFFFF',
+                fontWeight: 500,
+                margin: '0 0 20px',
+                ...fadeUp(0),
+              }}
+            >
+              Make your celebration feel as beautiful online as it does in real life.
+            </h1>
 
-        <div style={{ width: '100%', maxWidth: 840 }}>
-          {/* Label */}
-          <p
-            style={{
-              textAlign: 'center', marginBottom: 18,
-              fontSize: 10, fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.38)',
-              ...fadeUp(0.15),
-            }}
-          >
-            What are you celebrating?
-          </p>
+            <p
+              style={{
+                fontSize: 18,
+                lineHeight: 1.7,
+                color: 'rgba(255,255,255,0.8)',
+                fontWeight: 400,
+                letterSpacing: '-0.01em',
+                margin: '0 auto 28px',
+                maxWidth: 620,
+                ...fadeUp(0.12),
+              }}
+            >
+              Joyabl brings your website, registry, RSVPs, and guest list into one considered place that feels polished from the first click.
+            </p>
 
-          {/* Cards — staggered. Mobile: full-width equal cards. Desktop: auto-sized. */}
-          <style>{`
-            .hero-card-wrap { width: 100%; }
-            @media (min-width: 540px) { .hero-card-wrap { width: auto; } }
-          `}</style>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-            {EVENT_TYPES.map((event, i) => (
-              <div key={event.href} className="hero-card-wrap" style={fadeUp(0.28 + i * 0.08)}>
-                <EventTypeCard {...event} dark />
-              </div>
-            ))}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                marginBottom: 8,
+                ...fadeUp(0.24),
+              }}
+            >
+              <Link href="/start">
+                <Button
+                  size="lg"
+                  style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    border: '1px solid rgba(255,255,255,0.28)',
+                    color: '#FFFFFF',
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  Get started <ArrowRight size={15} />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
