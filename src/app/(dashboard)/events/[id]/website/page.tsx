@@ -1309,6 +1309,24 @@ export default function WebsiteEditorPage() {
 
   const eventUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/${event?.slug}`
   const imageAdjustments = content._image_adjustments ?? {}
+  const showWelcomeBackgroundControl = heroLayout !== 'full-bleed' || !event?.cover_image_url
+  const welcomeBackgroundConfig = heroLayout === 'split'
+    ? {
+        label: 'Text panel background',
+        pickerTitle: 'Text panel',
+        helper: 'Used behind the text side of the split hero.',
+      }
+    : heroLayout === 'full-bleed'
+      ? {
+          label: 'Hero background',
+          pickerTitle: 'Hero',
+          helper: 'Used when no cover image is set.',
+        }
+      : {
+          label: 'Hero background',
+          pickerTitle: 'Hero',
+          helper: 'Used behind the welcome section.',
+        }
 
   // ── Schedule helpers ─────────────────────────────────────────────────────
   function addScheduleItem() {
@@ -1685,7 +1703,7 @@ export default function WebsiteEditorPage() {
               {/* Colours */}
               <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
                 <CollapseSection label="Colours">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs" style={{ color: '#8B8670' }}>Text colour</span>
                       <ColorPickerPopover
@@ -2099,7 +2117,43 @@ export default function WebsiteEditorPage() {
                               <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
                                 Used in full-bleed and split hero layouts.
                               </p>
+                              {heroLayout === 'full-bleed' && event?.cover_image_url && (
+                                <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
+                                  In full bleed, the cover image takes priority over the background colour.
+                                </p>
+                              )}
                             </div>
+                            {showWelcomeBackgroundControl && (
+                              <div>
+                                <Label>{welcomeBackgroundConfig.label}</Label>
+                                <ColorPickerPopover
+                                  value={content.welcome?.background_color ?? bgColor}
+                                  onChange={value => updateContent({ welcome: { ...content.welcome, background_color: value } })}
+                                  title={welcomeBackgroundConfig.pickerTitle}
+                                  subtitle="Background colour"
+                                  placement="bottom"
+                                  align="end"
+                                  renderTrigger={({ value }) => (
+                                    <div
+                                      className="flex items-center gap-3 rounded-2xl border px-3 py-3"
+                                      style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+                                    >
+                                      <div
+                                        className="h-10 w-10 rounded-2xl border"
+                                        style={{ background: value, borderColor: 'rgba(44,43,38,0.08)' }}
+                                      />
+                                      <div className="min-w-0 flex-1 text-left">
+                                        <p className="text-xs font-medium" style={{ color: '#8B8670' }}>Hex</p>
+                                        <p className="truncate text-sm font-semibold" style={{ color: '#2C2B26' }}>{value.toUpperCase()}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                />
+                                <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
+                                  {welcomeBackgroundConfig.helper}
+                                </p>
+                              </div>
+                            )}
                             <Field label="Greeting message">
                               <textarea
                                 className={textareaCls}

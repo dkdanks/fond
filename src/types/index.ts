@@ -86,6 +86,7 @@ export interface EventContent {
     show_rsvp?: boolean
     rsvp_deadline?: string
     rsvp_button_text?: string
+    background_color?: string
   }
   our_story?: {
     introduction?: string

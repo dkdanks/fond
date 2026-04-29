@@ -199,6 +199,7 @@ export function EventPage({
   const isEditable = Boolean(editor)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rsvpButtonText = (c.welcome as any)?.rsvp_button_text as string | undefined
+  const welcomeBackgroundColor = c.welcome?.background_color?.trim() || undefined
 
   function renderSection(key: string) {
     if (hiddenSections.has(key)) return null
@@ -492,8 +493,8 @@ export function EventPage({
           const coverUrl = event.cover_image_url
           const coverStyle = coverUrl ? getImageFrameStyle(coverUrl, imageAdjustments[heroImageAdjustmentKey()]) : undefined
           return renderSectionLayer('welcome', (
-            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? undefined : primaryColor, color: 'white' }}>
-              {coverUrl && <div className="absolute inset-0" style={{ ...coverStyle, backgroundColor: primaryColor }} />}
+            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? undefined : (welcomeBackgroundColor ?? primaryColor), color: 'white' }}>
+              {coverUrl && <div className="absolute inset-0" style={{ ...coverStyle, backgroundColor: welcomeBackgroundColor ?? primaryColor }} />}
               {coverUrl && <div className="absolute inset-0 bg-black/45" />}
               <div className="relative mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-20">
                 <h1 className="text-4xl font-semibold md:text-5xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
@@ -507,8 +508,8 @@ export function EventPage({
         if (heroLayout === 'split') {
           const coverUrl = event.cover_image_url
           return renderSectionLayer('welcome', (
-            <section className="flex min-h-[55vh] flex-col md:flex-row" style={{ background: bgColor }}>
-              <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-16 md:px-10">
+            <section className="flex min-h-[55vh] flex-col md:flex-row" style={{ background: welcomeBackgroundColor ?? bgColor }}>
+              <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-16 md:px-10" style={{ background: welcomeBackgroundColor ?? bgColor }}>
                 <h1 className="text-3xl font-semibold leading-tight md:text-4xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine}
                 {c.welcome?.greeting && <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
@@ -520,7 +521,7 @@ export function EventPage({
         }
         if (heroLayout === 'illustrated') {
           return renderSectionLayer('welcome', (
-            <section className="px-4 py-20 text-center md:px-8 md:py-24" style={{ background: bgColor }}>
+            <section className="px-4 py-20 text-center md:px-8 md:py-24" style={{ background: welcomeBackgroundColor ?? bgColor }}>
               <div className="mb-8 flex items-center justify-center gap-3 opacity-30"><div className="h-px max-w-24 flex-1" style={{ background: primaryColor }} /><div className="h-1.5 w-1.5 rounded-full" style={{ background: primaryColor }} /><div className="h-px max-w-24 flex-1" style={{ background: primaryColor }} /></div>
               <h1 className="mb-4 text-4xl font-semibold md:text-5xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.01em' }}>{event.title}</h1>
               {metaLine && <div className="mb-4">{metaLine}</div>}
@@ -531,7 +532,7 @@ export function EventPage({
           ), { title: 'Click to edit Welcome' })
         }
         return renderSectionLayer('welcome', (
-          <section className="px-4 py-12 text-center md:px-8 md:py-20" style={{ background: bgColor }}>
+          <section className="px-4 py-12 text-center md:px-8 md:py-20" style={{ background: welcomeBackgroundColor ?? bgColor }}>
             <h1 className="mb-3 text-3xl font-semibold md:text-4xl" style={{ letterSpacing: '-0.02em', fontFamily: `'${displayFont}', serif` }}>{event.title}</h1>
             {metaLine && <div className="mb-8">{metaLine}</div>}
             {c.welcome?.greeting && <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
