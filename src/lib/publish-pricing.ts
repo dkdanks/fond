@@ -1,0 +1,1 @@
+export const PUBLISH_EVENT_FEE_CENTS = 4900

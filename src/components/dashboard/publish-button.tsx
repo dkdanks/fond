@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { DashboardModal } from '@/components/dashboard/modal'
-import { PUBLISH_EVENT_FEE_CENTS } from '@/lib/stripe'
+import { PUBLISH_EVENT_FEE_CENTS } from '@/lib/publish-pricing'
 import type { PublishFeeStatus } from '@/types'
 
 function formatFee(cents: number) {
