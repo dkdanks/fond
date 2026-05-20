@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -94,7 +94,6 @@ export function AppSidebar({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
-  const switcherRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -103,18 +102,6 @@ export function AppSidebar({
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [mobileOpen])
-
-  // Close switcher on outside click
-  useEffect(() => {
-    if (!switcherOpen) return
-    function handler(e: MouseEvent) {
-      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
-        setSwitcherOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [switcherOpen])
 
   // Close switcher on navigation
   useEffect(() => { setSwitcherOpen(false) }, [pathname])
@@ -318,7 +305,10 @@ export function AppSidebar({
         style={{ borderColor: '#E8E3D9' }}
       >
         {/* Event switcher */}
-        <div ref={switcherRef} className="relative mb-1 pb-2 border-b" style={{ borderColor: '#E8E3D9' }}>
+        {switcherOpen && (
+          <div className="fixed inset-0 z-40" onClick={() => setSwitcherOpen(false)} />
+        )}
+        <div className="relative mb-1 pb-2 border-b" style={{ borderColor: '#E8E3D9' }}>
           {!collapsed ? (
             <>
               <button
