@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardPage, DashboardPageHeader, DashboardSectionLabel } from '@/components/dashboard/page-layout'
 import { DashboardCard } from '@/components/dashboard/surface'
@@ -87,6 +87,7 @@ function normalizeEventRecord(raw: Record<string, unknown>, eventId: string, use
 export default function SettingsPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [event, setEvent] = useState<Event | null>(null)
@@ -135,34 +136,71 @@ export default function SettingsPage() {
     }
   }, [autoSave])
 
+  const loadEvent = useCallback(async (): Promise<Event | null> => {
+    const userId = await guardEvent(id)
+    if (!userId) {
+      return null
+    }
+
+    const { data } = await supabase.from('events').select('*').eq('id', id).single()
+    if (!data) {
+      return null
+    }
+
+    const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>, id, userId)
+    setEvent(normalizedEvent)
+    setTitle(normalizedEvent.title)
+    const dt = normalizedEvent.date ?? ''
+    if (dt.includes('T')) {
+      setDate(dt.split('T')[0])
+      setTime(dt.split('T')[1]?.slice(0, 5) ?? '')
+    } else {
+      setDate(dt)
+      setTime('')
+    }
+    setLocation(normalizedEvent.location ?? '')
+    const content = normalizedEvent.content as Record<string, unknown> | null
+    setTimezone((content?.timezone as string) ?? 'Australia/Sydney')
+    setHostName((content?.host_name as string) ?? '')
+    setSlug(normalizedEvent.slug)
+    return normalizedEvent
+  }, [id, supabase])
+
   // Load event
   useEffect(() => {
-    async function load() {
-      const userId = await guardEvent(id)
-      if (!userId) {
-        return
-      }
-      const { data } = await supabase.from('events').select('*').eq('id', id).single()
-      if (data) {
-        const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>, id, userId)
-        setEvent(normalizedEvent)
-        setTitle(normalizedEvent.title)
-        const dt = normalizedEvent.date ?? ''
-        if (dt.includes('T')) {
-          setDate(dt.split('T')[0])
-          setTime(dt.split('T')[1]?.slice(0, 5) ?? '')
-        } else {
-          setDate(dt)
+    const timer = setTimeout(() => {
+      void loadEvent()
+    }, 0)
+
+    return () => clearTimeout(timer)
+  }, [loadEvent])
+
+  useEffect(() => {
+    if (searchParams.get('publish') !== 'ready' || event?.publish_fee_status !== 'pending') {
+      return
+    }
+
+    let cancelled = false
+    let attempts = 0
+
+    async function pollPublishStatus() {
+      while (!cancelled && attempts < 6) {
+        attempts += 1
+        await new Promise(resolve => setTimeout(resolve, attempts === 1 ? 1200 : 1800))
+        const refreshedEvent = await loadEvent()
+        if (cancelled) return
+        if (refreshedEvent?.publish_fee_status === 'paid') {
+          return
         }
-        setLocation(normalizedEvent.location ?? '')
-        const content = normalizedEvent.content as Record<string, unknown> | null
-        setTimezone((content?.timezone as string) ?? 'Australia/Sydney')
-        setHostName((content?.host_name as string) ?? '')
-        setSlug(normalizedEvent.slug)
       }
     }
-    load()
-  }, [id, supabase])
+
+    void pollPublishStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [event?.publish_fee_status, loadEvent, searchParams])
 
   // Load Google Maps script
   useEffect(() => {
@@ -486,6 +524,7 @@ export default function SettingsPage() {
               eventTitle={event.title}
               publishFeeStatus={event.publish_fee_status}
               isPublished={false}
+              onRefreshStatus={loadEvent}
               variant="card"
             />
           ) : (

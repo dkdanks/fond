@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { DashboardModal } from '@/components/dashboard/modal'
 import { PUBLISH_EVENT_FEE_CENTS } from '@/lib/publish-pricing'
@@ -16,6 +16,7 @@ export function PublishButton({
   eventTitle,
   publishFeeStatus,
   isPublished,
+  onRefreshStatus,
   variant = 'button',
   className,
 }: {
@@ -23,10 +24,12 @@ export function PublishButton({
   eventTitle: string
   publishFeeStatus?: PublishFeeStatus | null
   isPublished: boolean
+  onRefreshStatus?: () => Promise<unknown>
   variant?: 'button' | 'card'
   className?: string
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const [open, setOpen] = useState(searchParams.get('publish') === 'ready')
   const [loading, setLoading] = useState(false)
@@ -36,10 +39,48 @@ export function PublishButton({
 
   useEffect(() => {
     if (searchParams.get('publish') === 'ready' && resolvedPublishFeeStatus !== 'paid') {
-      const timer = setTimeout(() => router.refresh(), 1200)
+      const timer = setTimeout(() => {
+        if (onRefreshStatus) {
+          void onRefreshStatus()
+          return
+        }
+        router.refresh()
+      }, 1200)
       return () => clearTimeout(timer)
     }
-  }, [resolvedPublishFeeStatus, router, searchParams])
+  }, [onRefreshStatus, resolvedPublishFeeStatus, router, searchParams])
+
+  useEffect(() => {
+    if (searchParams.get('publish') !== 'cancelled' || resolvedPublishFeeStatus !== 'pending') {
+      return
+    }
+
+    let cancelled = false
+
+    async function resetPending() {
+      const response = await fetch(`/api/events/${eventId}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetStatus: 'reset_pending' }),
+      })
+
+      if (!cancelled && response.ok) {
+        setOpen(false)
+        router.replace(pathname)
+        if (onRefreshStatus) {
+          void onRefreshStatus()
+        } else {
+          router.refresh()
+        }
+      }
+    }
+
+    void resetPending()
+
+    return () => {
+      cancelled = true
+    }
+  }, [eventId, onRefreshStatus, pathname, resolvedPublishFeeStatus, router, searchParams])
 
   async function openCheckout() {
     setLoading(true)
@@ -68,6 +109,32 @@ export function PublishButton({
     if (response.ok) {
       setOpen(false)
       router.refresh()
+      return
+    }
+
+    const json = await response.json().catch(() => ({}))
+    setError(json.error ?? 'Something went wrong. Please try again.')
+    setLoading(false)
+  }
+
+  async function resetPendingState() {
+    setLoading(true)
+    setError('')
+
+    const response = await fetch(`/api/events/${eventId}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetStatus: 'reset_pending' }),
+    })
+
+    if (response.ok) {
+      setOpen(false)
+      router.replace(pathname)
+      if (onRefreshStatus) {
+        await onRefreshStatus()
+      } else {
+        router.refresh()
+      }
       return
     }
 
@@ -107,13 +174,28 @@ export function PublishButton({
           Confirming your payment
         </p>
         <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
-          We&apos;re waiting for Stripe to confirm the checkout. This usually only takes a moment.
+          We&apos;re waiting for Stripe to confirm the checkout. If you backed out before paying, you can reset this and try again.
         </p>
       </div>
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-3">
         <button
           type="button"
-          onClick={() => router.refresh()}
+          onClick={() => void resetPendingState()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
+          style={{ border: '1px solid #E8E3D9', background: '#FFFFFF', color: '#2C2B26', opacity: loading ? 0.7 : 1 }}
+        >
+          Reset and try again
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (onRefreshStatus) {
+              void onRefreshStatus()
+              return
+            }
+            router.refresh()
+          }}
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium"
           style={{ background: '#2C2B26', color: '#FAFAF7' }}
         >

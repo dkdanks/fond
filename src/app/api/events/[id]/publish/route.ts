@@ -6,9 +6,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { targetStatus } = await req.json() as { targetStatus?: 'draft' | 'published' }
+  const { targetStatus } = await req.json() as { targetStatus?: 'draft' | 'published' | 'reset_pending' }
 
-  if (!targetStatus || !['draft', 'published'].includes(targetStatus)) {
+  if (!targetStatus || !['draft', 'published', 'reset_pending'].includes(targetStatus)) {
     return NextResponse.json({ error: 'Invalid target status' }, { status: 400 })
   }
 
@@ -28,6 +28,23 @@ export async function POST(
 
   if (!event) {
     return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+  }
+
+  if (targetStatus === 'reset_pending') {
+    const { error } = await supabase
+      .from('events')
+      .update({
+        publish_fee_status: 'unpaid',
+        publish_fee_checkout_session_id: null,
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      return NextResponse.json({ error: 'Failed to reset publish state' }, { status: 500 })
+    }
+
+    return NextResponse.json({ ok: true })
   }
 
   if (targetStatus === 'published' && event.publish_fee_status !== 'paid') {

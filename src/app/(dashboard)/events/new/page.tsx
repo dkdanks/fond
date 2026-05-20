@@ -46,7 +46,7 @@ function getSlugSuggestions(type: EventType, hostName: string, partnerName: stri
 function getEventTitle(type: EventType, hostName: string, partnerName: string): string {
   if (!hostName) return ''
   if (type === 'wedding') {
-    if (partnerName) return `${hostName} & ${partnerName}`
+    if (partnerName) return `${hostName} and ${partnerName}'s Wedding`
     return `${hostName}'s Wedding`
   }
   const labels: Record<EventType, string> = {
@@ -419,10 +419,10 @@ export default function NewEventPage() {
           {step === 2 && (
             <div>
               <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
-                {type === 'wedding' ? 'Let&apos;s start with your names.' : 'What&apos;s your name?'}
+                {type === 'wedding' ? "Let's start with your names." : "What's your name?"}
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                {type === 'wedding' ? 'We&apos;ll use these across your page.' : 'We&apos;ll personalise your page for you.'}
+                {type === 'wedding' ? "We'll use these across your page." : "We'll personalise your page for you."}
               </p>
 
               {type === 'wedding' ? (

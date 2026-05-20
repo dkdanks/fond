@@ -125,7 +125,7 @@ export function EventTypeStep({
         What are you celebrating?
       </h1>
       <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-        Choose and we&rsquo;ll set everything up for you.
+        Choose and we&apos;ll set everything up for you.
       </p>
 
       <div className="grid grid-cols-2 gap-3 mb-10">
@@ -319,7 +319,7 @@ export function DetailsStep({
             style={{ transform: dateUndecided ? 'translateX(21px)' : 'translateX(2px)' }}
           />
         </div>
-        <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&rsquo;t decided yet</span>
+        <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&apos;t decided yet</span>
       </label>
 
       <div className="mb-10">
@@ -378,7 +378,7 @@ export function SlugStep({
         Choose your URL.
       </h1>
       <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-        This is the link you&rsquo;ll share with your guests.
+        This is the link you&apos;ll share with your guests.
       </p>
 
       <div className="mb-6">
