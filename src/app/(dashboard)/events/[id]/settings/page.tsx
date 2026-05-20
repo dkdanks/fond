@@ -53,6 +53,37 @@ const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2
 const labelStyle: React.CSSProperties = { color: '#8B8670' }
 const cardStyle: React.CSSProperties = { background: 'white', borderColor: '#E8E3D9' }
 
+function isEventType(value: unknown): value is EventType {
+  return typeof value === 'string' && value in EVENT_TYPE_LABELS
+}
+
+function normalizeEventRecord(raw: Record<string, unknown>, eventId: string, userId: string): Event {
+  return {
+    id: typeof raw.id === 'string' ? raw.id : eventId,
+    user_id: typeof raw.user_id === 'string' ? raw.user_id : userId,
+    type: isEventType(raw.type) ? raw.type : 'other',
+    title: typeof raw.title === 'string' ? raw.title : '',
+    slug: typeof raw.slug === 'string' ? raw.slug : '',
+    date: typeof raw.date === 'string' ? raw.date : null,
+    location: typeof raw.location === 'string' ? raw.location : null,
+    description: typeof raw.description === 'string' ? raw.description : null,
+    cover_image_url: typeof raw.cover_image_url === 'string' ? raw.cover_image_url : null,
+    primary_color: typeof raw.primary_color === 'string' ? raw.primary_color : '#2C2B26',
+    accent_color: typeof raw.accent_color === 'string' ? raw.accent_color : '#B5A98A',
+    status: raw.status === 'published' ? 'published' : 'draft',
+    publish_fee_status:
+      raw.publish_fee_status === 'paid' || raw.publish_fee_status === 'pending' || raw.publish_fee_status === 'unpaid'
+        ? raw.publish_fee_status
+        : 'unpaid',
+    publish_fee_paid_at: typeof raw.publish_fee_paid_at === 'string' ? raw.publish_fee_paid_at : null,
+    publish_fee_checkout_session_id:
+      typeof raw.publish_fee_checkout_session_id === 'string' ? raw.publish_fee_checkout_session_id : null,
+    published_at: typeof raw.published_at === 'string' ? raw.published_at : null,
+    content: raw.content && typeof raw.content === 'object' ? (raw.content as Event['content']) : null,
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : new Date().toISOString(),
+  }
+}
+
 export default function SettingsPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -113,20 +144,21 @@ export default function SettingsPage() {
       }
       const { data } = await supabase.from('events').select('*').eq('id', id).single()
       if (data) {
-        setEvent(data)
-        setTitle(data.title ?? '')
-        const dt = data.date ?? ''
+        const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>, id, userId)
+        setEvent(normalizedEvent)
+        setTitle(normalizedEvent.title)
+        const dt = normalizedEvent.date ?? ''
         if (dt.includes('T')) {
           setDate(dt.split('T')[0])
           setTime(dt.split('T')[1]?.slice(0, 5) ?? '')
         } else {
           setDate(dt)
         }
-        setLocation(data.location ?? '')
-        const content = data.content as Record<string, unknown> | null
+        setLocation(normalizedEvent.location ?? '')
+        const content = normalizedEvent.content as Record<string, unknown> | null
         setTimezone((content?.timezone as string) ?? 'Australia/Sydney')
         setHostName((content?.host_name as string) ?? '')
-        setSlug(data.slug ?? '')
+        setSlug(normalizedEvent.slug)
       }
     }
     load()
@@ -236,7 +268,7 @@ export default function SettingsPage() {
             className="inline-block px-3 py-1 rounded-full text-xs font-medium"
             style={{ background: '#F5F0E8', color: '#8B8670', border: '1px solid #E8E3D9' }}
           >
-            {EVENT_TYPE_LABELS[event.type as EventType]}
+            {EVENT_TYPE_LABELS[event.type] ?? 'Other'}
           </span>
         </div>
 

@@ -21,7 +21,7 @@ export function PublishButton({
 }: {
   eventId: string
   eventTitle: string
-  publishFeeStatus: PublishFeeStatus
+  publishFeeStatus?: PublishFeeStatus | null
   isPublished: boolean
   variant?: 'button' | 'card'
   className?: string
@@ -32,12 +32,14 @@ export function PublishButton({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const resolvedPublishFeeStatus: PublishFeeStatus = publishFeeStatus ?? 'unpaid'
+
   useEffect(() => {
-    if (searchParams.get('publish') === 'ready' && publishFeeStatus !== 'paid') {
+    if (searchParams.get('publish') === 'ready' && resolvedPublishFeeStatus !== 'paid') {
       const timer = setTimeout(() => router.refresh(), 1200)
       return () => clearTimeout(timer)
     }
-  }, [publishFeeStatus, router, searchParams])
+  }, [resolvedPublishFeeStatus, router, searchParams])
 
   async function openCheckout() {
     setLoading(true)
@@ -74,7 +76,7 @@ export function PublishButton({
     setLoading(false)
   }
 
-  const feePaid = publishFeeStatus === 'paid'
+  const feePaid = resolvedPublishFeeStatus === 'paid'
   const body = feePaid ? (
     <>
       <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
@@ -98,7 +100,7 @@ export function PublishButton({
         </button>
       </div>
     </>
-  ) : publishFeeStatus === 'pending' ? (
+  ) : resolvedPublishFeeStatus === 'pending' ? (
     <>
       <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
         <p className="mb-2 text-sm font-medium" style={{ color: '#2C2B26' }}>

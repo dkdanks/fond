@@ -101,28 +101,37 @@ export function AppSidebar({
     <>
       {/* Logo + close (mobile) / collapse (desktop) */}
       <div
-        className="flex items-center h-14 px-3 border-b shrink-0"
+        className="border-b px-3 py-3 shrink-0"
         style={{ borderColor: '#E8E3D9' }}
       >
         {!collapsed && (
-          <div className="flex-1 pr-2">
+          <div className="pr-2">
+            <div className="mb-2 flex items-center">
+              <Link
+                href={`/events/${eventId}/home`}
+                className="text-[13px] font-medium leading-none"
+                style={{ color: '#2C2B26', letterSpacing: '-0.05em', textDecoration: 'none' }}
+                onClick={() => setMobileOpen(false)}
+              >
+                joyabl
+              </Link>
+            </div>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setSwitcherOpen(value => !value)}
-                className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-black/5"
-                style={{ color: '#2C2B26' }}
+                className="flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors hover:bg-[#F8F5EF]"
+                style={{ color: '#2C2B26', borderColor: '#E8E3D9', background: '#FFFFFF' }}
               >
-                <span
-                  className="text-[18px] font-medium leading-none"
-                  style={{ letterSpacing: '-0.07em' }}
-                >
-                  joyabl
-                </span>
-                <span className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>
-                  {currentEventTitle}
-                </span>
-                <ChevronDown size={14} style={{ color: '#8B8670' }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>
+                    {currentEventTitle}
+                  </p>
+                  <p className="mt-1 text-[11px]" style={{ color: '#8B8670' }}>
+                    {currentLifecycle === 'coming_up' ? 'Coming up' : 'Complete'}
+                  </p>
+                </div>
+                <ChevronDown size={14} style={{ color: '#8B8670', flexShrink: 0 }} />
               </button>
 
               {switcherOpen && (
@@ -189,27 +198,38 @@ export function AppSidebar({
             </div>
           </div>
         )}
-        {collapsed && <div className="flex-1" />}
+        {collapsed && <div className="flex items-center justify-between">
+          <Link
+            href={`/events/${eventId}/home`}
+            className="text-[13px] font-medium leading-none"
+            style={{ color: '#2C2B26', letterSpacing: '-0.05em', textDecoration: 'none' }}
+            onClick={() => setMobileOpen(false)}
+          >
+            joyabl
+          </Link>
+        </div>}
 
         {/* Mobile: close drawer */}
-        <button
-          className="md:hidden w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/5"
-          style={{ color: '#8B8670' }}
-          onClick={() => setMobileOpen(false)}
-          aria-label="Close menu"
-        >
-          <X size={14} />
-        </button>
+        <div className="mt-2 flex items-center justify-end">
+          <button
+            className="md:hidden w-7 h-7 rounded-md flex items-center justify-center transition-colors hover:bg-black/5"
+            style={{ color: '#8B8670' }}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+          >
+            <X size={14} />
+          </button>
 
-        {/* Desktop: collapse toggle */}
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="hidden md:flex w-7 h-7 rounded-md items-center justify-center transition-colors hover:bg-black/5"
-          style={{ color: '#8B8670' }}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+          {/* Desktop: collapse toggle */}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="hidden md:flex w-7 h-7 rounded-md items-center justify-center transition-colors hover:bg-black/5"
+            style={{ color: '#8B8670' }}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </div>
       </div>
 
       {/* Nav items */}
