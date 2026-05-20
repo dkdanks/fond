@@ -11,6 +11,7 @@ import { SkeletonRow } from '@/components/app/skeleton'
 import { Pagination } from '@/components/app/pagination'
 import { DashboardErrorState, DashboardPage, DashboardPageHeader } from '@/components/dashboard/page-layout'
 import { DashboardCardDescription, DashboardCardTitle, DashboardStatCard } from '@/components/dashboard/surface'
+import { DashboardTableFrame, DashboardTableScroll } from '@/components/dashboard/table-shell'
 
 const PAGE_SIZE = 25
 
@@ -423,13 +424,15 @@ export default function ContributionsPage() {
       {error ? (
         <DashboardErrorState message={error} onRetry={() => void load(page, search)} />
       ) : (
-      <div className="rounded-2xl border overflow-x-auto" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+      <DashboardTableFrame>
         {loading ? (
+          <DashboardTableScroll>
           <table className="w-full text-sm" style={{ minWidth: 680 }}>
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} cols={6} />)}
             </tbody>
           </table>
+          </DashboardTableScroll>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#F5F0E8' }}>
@@ -441,6 +444,7 @@ export default function ContributionsPage() {
             </DashboardCardDescription>
           </div>
         ) : (
+          <DashboardTableScroll>
           <table className="w-full text-sm" style={{ minWidth: 680 }}>
             <thead>
               <tr className="sticky top-0 z-10" style={{ borderBottom: '1px solid #F0EDE8', background: 'white' }}>
@@ -558,9 +562,10 @@ export default function ContributionsPage() {
               })}
             </tbody>
           </table>
+          </DashboardTableScroll>
         )}
         <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
-      </div>
+      </DashboardTableFrame>
       )}
 
       {/* Floating multi-select bar */}

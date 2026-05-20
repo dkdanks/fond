@@ -20,6 +20,8 @@ import type { ChangeEvent, Dispatch, FormEvent, RefObject, SetStateAction } from
 import React from 'react'
 import { Edit2, MessageSquare, Trash2 as TrashSmall } from 'lucide-react'
 import type { Guest } from '@/types'
+import { DashboardModal } from '@/components/dashboard/modal'
+import { DashboardTableFrame, DashboardTableScroll } from '@/components/dashboard/table-shell'
 
 const PRESET_TAGS = [
   'Immediate family', 'Distant family', 'Close friend', 'Wedding party',
@@ -32,18 +34,14 @@ type AddMode = 'none' | 'single' | 'paste' | 'csv'
 
 type GuestsHeaderProps = {
   statsTotal: number
-  addDropdownOpen: boolean
-  onToggleAddDropdown: () => void
   onExport: () => void
-  onSelectAddMode: (mode: Exclude<AddMode, 'none'>) => void
+  onOpenAddGuests: () => void
 }
 
 export function GuestsHeader({
   statsTotal,
-  addDropdownOpen,
-  onToggleAddDropdown,
   onExport,
-  onSelectAddMode,
+  onOpenAddGuests,
 }: GuestsHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-3 mb-6 md:mb-8 flex-wrap">
@@ -59,38 +57,13 @@ export function GuestsHeader({
         >
           <Download size={13} /> Export
         </button>
-        <div className="relative">
-          <button
-            onClick={onToggleAddDropdown}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: '#2C2B26', color: 'white' }}
-          >
-            <Plus size={14} /> Add guest <ChevronDown size={12} style={{ opacity: 0.6 }} />
-          </button>
-          {addDropdownOpen && (
-            <div
-              className="absolute right-0 top-full mt-1 z-20 rounded-xl border shadow-lg overflow-hidden"
-              style={{ background: 'white', borderColor: '#E8E3D9', minWidth: 180 }}
-            >
-              {([
-                { key: 'single', label: 'Add one by one' },
-                { key: 'paste', label: 'Paste a list' },
-                { key: 'csv', label: 'Upload CSV' },
-              ] as const).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => onSelectAddMode(key)}
-                  className="w-full px-4 py-2.5 text-sm text-left transition-colors"
-                  style={{ color: '#2C2B26' }}
-                  onMouseEnter={event => { event.currentTarget.style.background = 'rgba(44,43,38,0.06)' }}
-                  onMouseLeave={event => { event.currentTarget.style.background = 'transparent' }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <button
+          onClick={onOpenAddGuests}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+          style={{ background: '#2C2B26', color: 'white' }}
+        >
+          <Plus size={14} /> Add guests
+        </button>
       </div>
     </div>
   )
@@ -305,9 +278,11 @@ export function BulkActionBar({
 type ParsedRow = { name: string; email: string; error?: string }
 type ParsedCsvRow = { first_name: string; last_name: string; email: string; phone: string }
 
-type AddGuestPanelsProps = {
+type AddGuestsModalProps = {
+  open: boolean
   addMode: AddMode
   onClose: () => void
+  onChangeMode: (mode: Exclude<AddMode, 'none'>) => void
   onAddGuest: (event: FormEvent<HTMLFormElement>) => void
   singleFirstName: string
   singleLastName: string
@@ -344,9 +319,66 @@ type AddGuestPanelsProps = {
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
 }
 
-export function AddGuestPanels({
+function ImportPreview({
+  title,
+  rows,
+}: {
+  title: string
+  rows: Array<{ name: string; email?: string }>
+}) {
+  return (
+    <div className="rounded-2xl border p-4 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>{title}</p>
+        <span className="text-xs" style={{ color: '#B5A98A' }}>
+          {rows.length} guest{rows.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm leading-6" style={{ color: '#8B8670' }}>
+          Start typing and each line will appear here before you add it.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto">
+          {rows.slice(0, 12).map((row, index) => (
+            <div
+              key={`${row.name}-${row.email ?? 'missing'}-${index}`}
+              className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
+              style={{ borderColor: '#F0EDE8', background: '#FAFAF7' }}
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: '#2C2B26' }}>{row.name}</p>
+                <p className="text-xs truncate" style={{ color: row.email ? '#8B8670' : '#B5A98A' }}>
+                  {row.email || 'No email yet'}
+                </p>
+              </div>
+              <span
+                className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium"
+                style={{
+                  background: row.email ? '#F0FDF4' : '#F5F0E8',
+                  color: row.email ? '#15803D' : '#8B8670',
+                }}
+              >
+                {row.email ? 'Ready to invite' : 'Add now, invite later'}
+              </span>
+            </div>
+          ))}
+          {rows.length > 12 && (
+            <p className="text-xs pt-1" style={{ color: '#B5A98A' }}>
+              +{rows.length - 12} more in this import
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function AddGuestsModal({
+  open,
   addMode,
   onClose,
+  onChangeMode,
   onAddGuest,
   singleFirstName,
   singleLastName,
@@ -381,211 +413,247 @@ export function AddGuestPanels({
   onDragLeave,
   onFileDrop,
   onFileChange,
-}: AddGuestPanelsProps) {
+}: AddGuestsModalProps) {
   if (addMode === 'none') return null
 
-  const exampleCsv = 'Name,Email\nJane Smith,jane@example.com\nJohn Doe,john@example.com'
+  const quickAddPreview = validRows.map(row => ({ name: row.name, email: row.email }))
+  const csvPreview = csvRows.map(row => ({
+    name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'Guest',
+    email: row.email,
+  }))
 
   return (
-    <div
-      className="mb-6 rounded-2xl border p-6"
-      style={{ background: 'white', borderColor: '#E8E3D9' }}
+    <DashboardModal
+      open={open}
+      onClose={onClose}
+      width="wide"
+      title="Add guests"
+      description="Paste a list, add one guest manually, or import a CSV. Guests without emails can still be added now and invited later."
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold" style={{ color: '#2C2B26' }}>
-          {addMode === 'single' ? 'Add a guest' : addMode === 'paste' ? 'Paste your guest list' : 'Upload CSV'}
-        </h2>
-        <button onClick={onClose} style={{ color: '#B5A98A' }}>
-          <X size={16} />
-        </button>
+      <div className="flex flex-wrap gap-2 mb-5">
+        {([
+          { key: 'paste', label: 'Quick list' },
+          { key: 'single', label: 'Single guest' },
+          { key: 'csv', label: 'CSV import' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChangeMode(key)}
+            className="px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
+            style={{
+              background: addMode === key ? '#2C2B26' : '#FFFFFF',
+              color: addMode === key ? '#FFFFFF' : '#8B8670',
+              border: addMode === key ? '1px solid #2C2B26' : '1px solid #E8E3D9',
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {addMode === 'single' && (
-        <form onSubmit={onAddGuest} className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>First name *</label>
-              <input
-                autoFocus
-                required
-                className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
-                style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
-                value={singleFirstName}
-                onChange={event => onSingleFirstNameChange(event.target.value)}
-                placeholder="Jane"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Last name</label>
-              <input
-                className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
-                style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
-                value={singleLastName}
-                onChange={event => onSingleLastNameChange(event.target.value)}
-                placeholder="Smith"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Email</label>
-              <input
-                type="email"
-                className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
-                style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
-                value={singleEmail}
-                onChange={event => onSingleEmailChange(event.target.value)}
-                placeholder="jane@example.com"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Phone</label>
-              <input
-                type="tel"
-                className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
-                style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
-                value={singlePhone}
-                onChange={event => onSinglePhoneChange(event.target.value)}
-                placeholder="+61 400 000 000"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Note <span style={{ color: '#B5A98A', fontWeight: 400 }}>(optional)</span></label>
-            <input
-              className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
-              style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
-              value={singleNote}
-              onChange={event => onSingleNoteChange(event.target.value)}
-              placeholder="Private note…"
-            />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <div
-                className="w-9 h-5 rounded-full relative transition-colors"
-                style={{ background: singlePlusOne ? '#2C2B26' : '#E8E3D9' }}
-                onClick={onToggleSinglePlusOne}
-              >
-                <div
-                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
-                  style={{ transform: singlePlusOne ? 'translateX(17px)' : 'translateX(2px)' }}
+        <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <form onSubmit={onAddGuest} className="flex flex-col gap-3 rounded-2xl border p-4 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>First name *</label>
+                <input
+                  autoFocus
+                  required
+                  className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
+                  style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
+                  value={singleFirstName}
+                  onChange={event => onSingleFirstNameChange(event.target.value)}
+                  placeholder="Jane"
                 />
               </div>
-              <span className="text-xs font-medium" style={{ color: '#2C2B26' }}>+1 allowed</span>
-            </label>
-          </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Last name</label>
+                <input
+                  className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
+                  style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
+                  value={singleLastName}
+                  onChange={event => onSingleLastNameChange(event.target.value)}
+                  placeholder="Smith"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Email</label>
+                <input
+                  type="email"
+                  className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
+                  style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
+                  value={singleEmail}
+                  onChange={event => onSingleEmailChange(event.target.value)}
+                  placeholder="jane@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Phone</label>
+                <input
+                  type="tel"
+                  className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
+                  style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
+                  value={singlePhone}
+                  onChange={event => onSinglePhoneChange(event.target.value)}
+                  placeholder="+61 400 000 000"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B8670' }}>Note <span style={{ color: '#B5A98A', fontWeight: 400 }}>(optional)</span></label>
+              <input
+                className="w-full px-3 py-2 text-sm rounded-xl border outline-none focus:border-[#2C2B26]"
+                style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26' }}
+                value={singleNote}
+                onChange={event => onSingleNoteChange(event.target.value)}
+                placeholder="Private note…"
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  className="w-9 h-5 rounded-full relative transition-colors"
+                  style={{ background: singlePlusOne ? '#2C2B26' : '#E8E3D9' }}
+                  onClick={onToggleSinglePlusOne}
+                >
+                  <div
+                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    style={{ transform: singlePlusOne ? 'translateX(17px)' : 'translateX(2px)' }}
+                  />
+                </div>
+                <span className="text-xs font-medium" style={{ color: '#2C2B26' }}>+1 allowed</span>
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={adding || !singleFirstName.trim()}
+                className="px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+                style={{ background: '#2C2B26', color: 'white', opacity: adding ? 0.7 : 1 }}
+              >
+                {adding ? 'Adding…' : 'Add guest'}
+              </button>
+            </div>
+          </form>
+          <ImportPreview
+            title="Guest preview"
+            rows={[
+              {
+                name: [singleFirstName, singleLastName].filter(Boolean).join(' ').trim() || 'Your guest will appear here',
+                email: singleEmail,
+              },
+            ]}
+          />
+        </div>
+      )}
 
-          <div className="border-t pt-4 mt-1 flex flex-col gap-2" style={{ borderColor: '#F0EDE8' }}>
-            <p className="text-xs font-semibold" style={{ color: '#2C2B26' }}>Paste &amp; upload CSV</p>
-            <p className="text-xs" style={{ color: '#B5A98A' }}>Columns: first name, last name, email, phone (one per line, comma-separated)</p>
+      {addMode === 'paste' && (
+        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border p-4 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+            <p className="text-sm font-medium mb-2" style={{ color: '#2C2B26' }}>Paste one guest per line</p>
+            <p className="text-xs mb-3 leading-5" style={{ color: '#8B8670' }}>
+              Works with names only, `name + email`, tab-separated spreadsheet rows, or `Jane Smith &lt;jane@example.com&gt;`.
+            </p>
             <textarea
-              className="w-full px-3 py-2.5 text-sm rounded-xl border outline-none resize-none"
-              style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26', minHeight: 90, fontFamily: 'monospace' }}
+              className="w-full px-3 py-3 text-sm rounded-2xl border outline-none resize-none"
+              style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26', minHeight: 260, fontFamily: 'monospace' }}
+              placeholder={`Jane Smith\nJohn Doe, john@example.com\nPriya Mehta <priya@example.com>`}
+              value={pasteText}
+              onChange={event => onPasteTextChange(event.target.value)}
+              autoFocus
+            />
+            <div className="flex flex-col gap-2 mt-4">
+              {parsed.length > 0 && (
+                <div className="flex items-center gap-2 text-xs" style={{ color: '#16A34A' }}>
+                  <CheckCircle2 size={13} /> {validRows.length} guest{validRows.length !== 1 ? 's' : ''} ready to add
+                </div>
+              )}
+              {errorRows.length > 0 && (
+                <div className="flex items-center gap-2 text-xs" style={{ color: '#EF4444' }}>
+                  <AlertCircle size={13} /> {errorRows.length} row{errorRows.length !== 1 ? 's' : ''} could not be read
+                </div>
+              )}
+              <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+                <div
+                  className="w-9 h-5 rounded-full relative transition-colors"
+                  style={{ background: sendInvites ? '#2C2B26' : '#E8E3D9' }}
+                  onClick={onToggleSendInvites}
+                >
+                  <div
+                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    style={{ transform: sendInvites ? 'translateX(17px)' : 'translateX(2px)' }}
+                  />
+                </div>
+                <span className="text-xs" style={{ color: '#2C2B26' }}>
+                  Send invitations right away to guests with email addresses
+                </span>
+              </label>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={onImportGuests}
+                disabled={importing || !validRows.length}
+                className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: validRows.length ? '#2C2B26' : '#E8E3D9', color: validRows.length ? 'white' : '#B5A98A' }}
+              >
+                {importing ? 'Adding…' : `Add ${validRows.length} guest${validRows.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+          <ImportPreview title="Preview" rows={quickAddPreview} />
+        </div>
+      )}
+
+      {addMode === 'csv' && (
+        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-2xl border p-4 md:p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+            <div
+              onDragOver={event => { event.preventDefault(); onDragOver() }}
+              onDragLeave={onDragLeave}
+              onDrop={event => {
+                event.preventDefault()
+                onDragLeave()
+                const file = event.dataTransfer.files[0]
+                if (file) onFileDrop(file)
+              }}
+              className="flex flex-col items-center justify-center gap-3 py-10 rounded-2xl border-2 border-dashed cursor-pointer transition-colors mb-4"
+              style={{ borderColor: dragOver ? '#2C2B26' : '#E8E3D9', background: dragOver ? 'rgba(44,43,38,0.06)' : '#FAFAF7' }}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload size={20} style={{ color: '#B5A98A' }} />
+              <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>Drop a CSV here or click to browse</p>
+              <p className="text-xs text-center" style={{ color: '#B5A98A' }}>
+                Columns: first name, last name, email, phone
+              </p>
+              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={onFileChange} />
+            </div>
+            <textarea
+              className="w-full px-3 py-3 text-sm rounded-2xl border outline-none resize-none"
+              style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26', minHeight: 180, fontFamily: 'monospace' }}
               placeholder="Jane,Smith,jane@example.com,+61400000000"
               value={csvText}
               onChange={event => onCsvTextChange(event.target.value)}
             />
-            {csvRows.length > 0 && (
-              <p className="text-xs" style={{ color: '#16A34A' }}>{csvRows.length} row{csvRows.length !== 1 ? 's' : ''} ready to import</p>
-            )}
-            <div className="flex justify-end">
+            <div className="flex justify-end mt-4">
               <button
                 type="button"
                 onClick={onImportCsv}
                 disabled={csvImporting || !csvRows.length}
-                className="px-4 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
                 style={{ background: csvRows.length ? '#2C2B26' : '#E8E3D9', color: csvRows.length ? 'white' : '#B5A98A' }}
               >
                 {csvImporting ? 'Importing…' : `Import ${csvRows.length} guest${csvRows.length !== 1 ? 's' : ''}`}
               </button>
             </div>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={adding || !singleFirstName.trim()}
-              className="px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
-              style={{ background: '#2C2B26', color: 'white', opacity: adding ? 0.7 : 1 }}
-            >
-              {adding ? 'Adding…' : 'Add guest'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {addMode === 'paste' && (
-        <div className="flex flex-col gap-3">
-          <textarea
-            className="w-full px-3 py-2.5 text-sm rounded-xl border outline-none resize-none"
-            style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2B26', minHeight: 140, fontFamily: 'monospace' }}
-            placeholder={`Paste names + emails, one per line:\n${exampleCsv}`}
-            value={pasteText}
-            onChange={event => onPasteTextChange(event.target.value)}
-            autoFocus
-          />
-          {parsed.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              {validRows.length > 0 && (
-                <div className="flex items-center gap-2 text-xs" style={{ color: '#16A34A' }}>
-                  <CheckCircle2 size={13} /> {validRows.length} guest{validRows.length !== 1 ? 's' : ''} ready to import
-                </div>
-              )}
-              {errorRows.length > 0 && (
-                <div className="flex items-center gap-2 text-xs" style={{ color: '#EF4444' }}>
-                  <AlertCircle size={13} /> {errorRows.length} row{errorRows.length !== 1 ? 's' : ''} skipped (no email)
-                </div>
-              )}
-            </div>
-          )}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <div
-              className="w-9 h-5 rounded-full relative transition-colors"
-              style={{ background: sendInvites ? '#2C2B26' : '#E8E3D9' }}
-              onClick={onToggleSendInvites}
-            >
-              <div
-                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
-                style={{ transform: sendInvites ? 'translateX(17px)' : 'translateX(2px)' }}
-              />
-            </div>
-            <span className="text-xs" style={{ color: '#2C2B26' }}>Send invitation emails immediately</span>
-          </label>
-          <div className="flex justify-end">
-            <button
-              onClick={onImportGuests}
-              disabled={importing || !validRows.length}
-              className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
-              style={{ background: validRows.length ? '#2C2B26' : '#E8E3D9', color: validRows.length ? 'white' : '#B5A98A' }}
-            >
-              {importing ? 'Importing…' : `Import ${validRows.length} guest${validRows.length !== 1 ? 's' : ''}`}
-            </button>
-          </div>
+          <ImportPreview title="CSV preview" rows={csvPreview} />
         </div>
       )}
-
-      {addMode === 'csv' && (
-        <div
-          onDragOver={event => { event.preventDefault(); onDragOver() }}
-          onDragLeave={onDragLeave}
-          onDrop={event => {
-            event.preventDefault()
-            onDragLeave()
-            const file = event.dataTransfer.files[0]
-            if (file) onFileDrop(file)
-          }}
-          className="flex flex-col items-center justify-center gap-3 py-12 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-          style={{ borderColor: dragOver ? '#2C2B26' : '#E8E3D9', background: dragOver ? 'rgba(44,43,38,0.06)' : '#FAFAF7' }}
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload size={20} style={{ color: '#B5A98A' }} />
-          <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>Drop a CSV here or click to browse</p>
-          <p className="text-xs" style={{ color: '#B5A98A' }}>Columns: Name, Email (headers optional)</p>
-          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={onFileChange} />
-        </div>
-      )}
-    </div>
+    </DashboardModal>
   )
 }
 
@@ -797,8 +865,8 @@ export function GuestTable({
   setEditData,
 }: GuestTableProps) {
   return (
-    <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
-      <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+    <DashboardTableFrame>
+      <DashboardTableScroll maxHeight="calc(100vh - 400px)">
         <table className="w-full text-sm" style={{ minWidth: 640 }}>
           <thead>
             <tr className="sticky top-0 z-10" style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
@@ -1064,7 +1132,7 @@ export function GuestTable({
             })}
           </tbody>
         </table>
-      </div>
-    </div>
+      </DashboardTableScroll>
+    </DashboardTableFrame>
   )
 }

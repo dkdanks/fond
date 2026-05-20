@@ -12,6 +12,7 @@ export interface RsvpQuestion {
   type: 'yes_no' | 'text' | 'dropdown'
   options?: string[]
   required: boolean
+  preset_key?: string
 }
 
 interface Props {
@@ -30,7 +31,8 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
 
   const [answers, setAnswers] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
-    if (questions.some(q => q.id === 'attend')) init['attend'] = 'attending'
+    const attendQuestion = questions.find(q => q.id === 'attend')
+    if (attendQuestion) init.attend = attendQuestion.options?.[0] ?? "I'll be there"
     return init
   })
   const [name, setName] = useState(searchParams.get('name') ?? '')
@@ -48,7 +50,9 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
     setSubmitting(true)
     setError('')
 
-    const rsvpStatus = answers['attend'] === 'attending' ? 'attending' : 'declined'
+    const attendingQuestion = questions.find(q => q.id === 'attend')
+    const positiveAttendLabel = attendingQuestion?.options?.[0] ?? "I'll be there"
+    const rsvpStatus = answers['attend'] === positiveAttendLabel ? 'attending' : 'declined'
     const msgParts = questions
       .filter(q => q.id !== 'attend' && answers[q.id])
       .map(q => `${q.question}: ${answers[q.id]}`)
@@ -88,8 +92,13 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
     color: primaryColor,
   }
 
+  const attendingQuestion = questions.find(q => q.id === 'attend')
+  const attendingOptions = attendingQuestion?.options?.length === 2
+    ? attendingQuestion.options
+    : ["I'll be there", "Can't make it"]
+
   if (done) {
-    const attending = answers['attend'] === 'attending'
+    const attending = answers['attend'] === attendingOptions[0]
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
@@ -178,19 +187,16 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
                 {q.question}{q.required && <span style={{ opacity: 0.4 }}> *</span>}
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { val: 'attending', label: "I'll be there" },
-                  { val: 'declined', label: "Can't make it" },
-                ].map(({ val, label }) => (
+                {attendingOptions.map(label => (
                   <button
-                    key={val}
+                    key={label}
                     type="button"
-                    onClick={() => setAnswer(q.id, val)}
+                    onClick={() => setAnswer(q.id, label)}
                     className="py-3 rounded-xl text-sm font-medium border-2 transition-all"
                     style={{
-                      borderColor: answers[q.id] === val ? primaryColor : `${primaryColor}20`,
-                      background: answers[q.id] === val ? primaryColor : 'transparent',
-                      color: answers[q.id] === val ? bgColor : primaryColor,
+                      borderColor: answers[q.id] === label ? primaryColor : `${primaryColor}20`,
+                      background: answers[q.id] === label ? primaryColor : 'transparent',
+                      color: answers[q.id] === label ? bgColor : primaryColor,
                     }}
                   >
                     {label}
@@ -200,14 +206,14 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
             </div>
           ))}
 
-          {answers['attend'] !== 'declined' && questions.filter(q => q.id !== 'attend').map(q => (
+          {answers['attend'] !== attendingOptions[1] && questions.filter(q => q.id !== 'attend').map(q => (
             <div key={q.id}>
               <label className="block text-sm font-medium mb-3" style={{ color: primaryColor }}>
                 {q.question}{q.required && <span style={{ opacity: 0.4 }}> *</span>}
               </label>
               {q.type === 'yes_no' && (
                 <div className="grid grid-cols-2 gap-3">
-                  {['Yes', 'No'].map(label => (
+                  {(q.options?.length === 2 ? q.options : ['Yes', 'No']).map(label => (
                     <button
                       key={label}
                       type="button"

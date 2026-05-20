@@ -24,7 +24,7 @@ type AddGroupFormProps = {
   show: boolean
   newGroupName: string
   addingGroupSaving: boolean
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onSubmit: (groupName: string) => void
   onClose: () => void
   onGroupNameChange: (value: string) => void
 }
@@ -40,20 +40,27 @@ export function AddGroupForm({
   if (!show) return null
 
   return (
-    <form onSubmit={onSubmit} className="mb-6 rounded-2xl border p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
+    <form
+      onSubmit={event => {
+        event.preventDefault()
+        onSubmit(newGroupName)
+      }}
+      className="mb-6 rounded-2xl border p-5"
+      style={{ background: 'white', borderColor: '#E8E3D9' }}
+    >
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-semibold" style={{ color: '#2C2B26' }}>New group</p>
+        <p className="text-sm font-semibold" style={{ color: '#2C2B26' }}>New collection</p>
         <button type="button" onClick={onClose} style={{ color: '#B5A98A' }}><X size={16} /></button>
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
-          <RegistryLabel>Group name *</RegistryLabel>
-          <input autoFocus required className={inputCls} style={inputStyle} placeholder="e.g. Kitchen Reno, Honeymoon" value={newGroupName} onChange={event => onGroupNameChange(event.target.value)} />
-          <p className="text-xs mt-1.5" style={{ color: '#B5A98A' }}>A group fund will be created automatically. You can add specific items to it too.</p>
+          <RegistryLabel>Collection name *</RegistryLabel>
+          <input autoFocus required className={inputCls} style={inputStyle} placeholder="e.g. Honeymoon, Home, Baby Gear" value={newGroupName} onChange={event => onGroupNameChange(event.target.value)} />
+          <p className="text-xs mt-1.5" style={{ color: '#B5A98A' }}>Collections help you organise related funds. You&apos;ll add the first fund in the next step.</p>
         </div>
         <div className="flex items-end">
           <button type="submit" disabled={addingGroupSaving || !newGroupName.trim()} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: '#2C2B26', color: 'white' }}>
-            {addingGroupSaving ? 'Creating…' : 'Create group'}
+            {addingGroupSaving ? 'Saving…' : 'Continue'}
           </button>
         </div>
       </div>
@@ -110,27 +117,27 @@ export function AddItemForm({
     <form onSubmit={onSubmit} className="mb-6 rounded-2xl border p-5" style={{ background: 'white', borderColor: '#E8E3D9' }}>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-semibold" style={{ color: '#2C2B26' }}>
-          New item {addingGroup ? <span style={{ color: '#8B8670', fontWeight: 400 }}>- {addingGroup}</span> : ''}
+          New fund {addingGroup ? <span style={{ color: '#8B8670', fontWeight: 400 }}>- {addingGroup}</span> : ''}
         </p>
         <button type="button" onClick={onClose} style={{ color: '#B5A98A' }}><X size={16} /></button>
       </div>
       <div className={`grid gap-3 ${viewMode === 'cards' ? 'grid-cols-2' : 'grid-cols-4'}`}>
         <div className={viewMode === 'list' ? 'col-span-1' : 'col-span-2'}>
-          <RegistryLabel>Name *</RegistryLabel>
-          <input autoFocus required className={inputCls} style={inputStyle} placeholder="e.g. Coffee machine" value={newName} onChange={event => onNameChange(event.target.value)} />
+          <RegistryLabel>Fund name *</RegistryLabel>
+          <input autoFocus required className={inputCls} style={inputStyle} placeholder="e.g. Weekend away, Dining table, New stroller" value={newName} onChange={event => onNameChange(event.target.value)} />
         </div>
         <div>
-          <RegistryLabel>Amount ($) <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
+          <RegistryLabel>Target ($) <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
           <input type="number" min="1" step="0.01" className={inputCls} style={inputStyle} placeholder="Open-ended if blank" value={newAmount} onChange={event => onAmountChange(event.target.value)} />
         </div>
         <div>
-          <RegistryLabel>Group</RegistryLabel>
-          <input list="groups-list" className={inputCls} style={inputStyle} placeholder="Assign to group" value={newGroup} onChange={event => onGroupChange(event.target.value)} />
+          <RegistryLabel>Collection</RegistryLabel>
+          <input list="groups-list" className={inputCls} style={inputStyle} placeholder="Assign to collection" value={newGroup} onChange={event => onGroupChange(event.target.value)} />
           <datalist id="groups-list">{groups.map(group => <option key={group} value={group} />)}</datalist>
         </div>
         <div className="col-span-2">
-          <RegistryLabel>Description <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
-          <input className={inputCls} style={inputStyle} placeholder="A note for guests" value={newDesc} onChange={event => onDescChange(event.target.value)} />
+          <RegistryLabel>Guest note <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
+          <input className={inputCls} style={inputStyle} placeholder="Tell guests what this helps with" value={newDesc} onChange={event => onDescChange(event.target.value)} />
         </div>
         <div className="col-span-2">
           <RegistryLabel>Photo <span style={{ color: '#C8BFA8', fontWeight: 400 }}>optional</span></RegistryLabel>
@@ -139,7 +146,7 @@ export function AddItemForm({
       </div>
       <div className="flex justify-end mt-4">
         <button type="submit" disabled={addingSaving || !newName.trim()} className="px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: '#2C2B26', color: 'white' }}>
-          {addingSaving ? <><Loader2 size={12} className="animate-spin" /> Adding…</> : 'Add item'}
+          {addingSaving ? <><Loader2 size={12} className="animate-spin" /> Adding…</> : 'Add fund'}
         </button>
       </div>
     </form>
@@ -158,14 +165,14 @@ export function RegistryEmptyState({
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'white', border: '1px solid #E8E3D9' }}>
         <Gift size={24} style={{ color: '#B5A98A' }} />
       </div>
-      <p className="text-base font-semibold mb-2" style={{ color: '#2C2B26' }}>No registry items yet</p>
-      <p className="text-sm mb-6" style={{ color: '#8B8670' }}>Add a group (e.g. Kitchen Reno, Honeymoon) or individual items.</p>
+      <p className="text-base font-semibold mb-2" style={{ color: '#2C2B26' }}>No registry funds yet</p>
+      <p className="text-sm mb-6" style={{ color: '#8B8670' }}>Start with a fund guests can contribute to, then organise it into collections if you need to.</p>
       <div className="flex items-center justify-center gap-3">
         <button onClick={onAddGroup} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm border font-medium transition-colors" style={{ borderColor: '#E8E3D9', color: '#8B8670', background: 'white' }}>
-          <Plus size={14} /> Add group
+          <Plus size={14} /> Add collection
         </button>
         <button onClick={onAddItem} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: '#2C2B26', color: 'white' }}>
-          <Plus size={14} /> Add item
+          <Plus size={14} /> Add fund
         </button>
       </div>
     </div>

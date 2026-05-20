@@ -8,7 +8,7 @@ import { DashboardCard } from '@/components/dashboard/surface'
 import { guardEvent } from '@/lib/event-guard'
 import type { Event, EventType } from '@/types'
 import { EVENT_TYPE_LABELS } from '@/types'
-import { Trash2 } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Radio, Trash2 } from 'lucide-react'
 
 type GoogleAutocomplete = {
   getPlace: () => { formatted_address?: string; name?: string } | undefined
@@ -161,7 +161,7 @@ export default function SettingsPage() {
   }
 
   // Slug availability check (debounced)
-  const checkSlug = useCallback((value: string) => {
+  function checkSlug(value: string) {
     if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current)
     if (!value || value === event?.slug) {
       setSlugStatus('idle')
@@ -173,7 +173,7 @@ export default function SettingsPage() {
       const json = await res.json()
       setSlugStatus(json.available ? 'available' : 'taken')
     }, 500)
-  }, [event?.slug, id])
+  }
 
   async function handleSlugBlur() {
     if (!slug || slug === event?.slug) return
@@ -199,6 +199,7 @@ export default function SettingsPage() {
   }
 
   const slugValid = /^[a-z0-9-]{3,}$/.test(slug)
+  const shareUrl = event?.slug ? `joyabl.com/e/${event.slug}` : ''
 
   if (!event) return <p className="text-sm px-8 py-8" style={{ color: '#B5A98A' }}>Loading…</p>
 
@@ -384,26 +385,91 @@ export default function SettingsPage() {
       {/* Publish / Draft toggle */}
       <DashboardSectionLabel className="mt-6">Visibility</DashboardSectionLabel>
       <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>
-              {event.status === 'published' ? 'Live' : 'Draft'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: '#8B8670' }}>
-              {event.status === 'published'
-                ? 'Your event page is visible to guests.'
-                : 'Your event is not visible to guests yet.'}
-            </p>
+        <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: event.status === 'published' ? '#BBF7D0' : '#E8E3D9', background: event.status === 'published' ? '#F0FDF4' : '#FAFAF7' }}>
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full"
+              style={{ background: event.status === 'published' ? '#DCFCE7' : '#F5F0E8', color: event.status === 'published' ? '#15803D' : '#8B8670' }}
+            >
+              {event.status === 'published' ? <Radio size={18} /> : <EyeOff size={18} />}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>
+                  {event.status === 'published' ? 'Live to guests' : 'Hidden from guests'}
+                </p>
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium"
+                  style={{
+                    background: event.status === 'published' ? '#DCFCE7' : '#F5F0E8',
+                    color: event.status === 'published' ? '#15803D' : '#8B8670',
+                  }}
+                >
+                  {event.status === 'published' ? <CheckCircle2 size={11} /> : <EyeOff size={11} />}
+                  {event.status === 'published' ? 'Published' : 'Draft'}
+                </span>
+              </div>
+              <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
+                {event.status === 'published'
+                  ? 'Guests can open your event page right now using the link below.'
+                  : 'Guests cannot view this event yet. Keep it in draft while you are still editing.'}
+              </p>
+              {shareUrl && (
+                <div className="mt-3 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#E8E3D9', background: '#FFFFFF', color: '#2C2B26' }}>
+                  {shareUrl}
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
           <button
-            onClick={handleStatusToggle}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            style={event.status === 'published'
-              ? { background: '#F5F0E8', color: '#8B8670', border: '1px solid #E8E3D9' }
-              : { background: '#2C2B26', color: 'white' }
-            }
+            onClick={() => event.status === 'published' && handleStatusToggle()}
+            className="rounded-2xl border p-4 text-left transition-colors"
+            style={{
+              borderColor: event.status === 'draft' ? '#2C2B26' : '#E8E3D9',
+              background: event.status === 'draft' ? '#FAFAF7' : '#FFFFFF',
+            }}
           >
-            {event.status === 'published' ? 'Draft (take offline)' : 'Make live'}
+            <div className="flex items-start gap-3">
+              <div
+                className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: '#F5F0E8', color: '#8B8670' }}
+              >
+                <EyeOff size={15} />
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Keep in draft</p>
+                <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                  Use this while you are still changing details or do not want guests to visit the page yet.
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => event.status === 'draft' && handleStatusToggle()}
+            className="rounded-2xl border p-4 text-left transition-colors"
+            style={{
+              borderColor: event.status === 'published' ? '#2C2B26' : '#E8E3D9',
+              background: event.status === 'published' ? '#FAFAF7' : '#FFFFFF',
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: '#F0FDF4', color: '#15803D' }}
+              >
+                <Eye size={15} />
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Make live</p>
+                <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                  Publish the page so guests can view it using your shareable event link.
+                </p>
+              </div>
+            </div>
           </button>
         </div>
         {savedField === 'status' && <p className="text-xs mt-3" style={{ color: '#4CAF50' }}>Saved</p>}

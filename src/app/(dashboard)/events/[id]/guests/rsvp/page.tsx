@@ -13,20 +13,21 @@ interface RsvpQuestion {
   type: 'yes_no' | 'text' | 'dropdown'
   options?: string[]
   required: boolean
+  preset_key?: string
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10) }
 
 const DEFAULT_QUESTIONS: RsvpQuestion[] = [
-  { id: 'attend', question: 'Will you be attending?', type: 'yes_no', required: true },
+  { id: 'attend', question: 'Will you be attending?', type: 'yes_no', options: ["I'll be there", "Can't make it"], required: true },
 ]
 
 const COMMON_QUESTIONS = [
-  { question: 'Dietary requirements', type: 'text' as const },
-  { question: 'Song request', type: 'text' as const },
-  { question: 'Meal preference', type: 'dropdown' as const, options: ['Chicken', 'Fish', 'Vegetarian', 'Vegan'] },
-  { question: 'Will you need accommodation?', type: 'yes_no' as const },
-  { question: 'How did you meet the couple?', type: 'text' as const },
+  { key: 'dietary_requirements', question: 'Dietary requirements', type: 'text' as const },
+  { key: 'song_request', question: 'Song request', type: 'text' as const },
+  { key: 'meal_preference', question: 'Meal preference', type: 'dropdown' as const, options: ['Chicken', 'Fish', 'Vegetarian', 'Vegan'] },
+  { key: 'need_accommodation', question: 'Will you need accommodation?', type: 'yes_no' as const, options: ['Yes', 'No'] },
+  { key: 'how_did_you_meet', question: 'How did you meet the couple?', type: 'text' as const },
 ]
 
 const inputCls = 'w-full px-3 py-2 text-sm rounded-xl border outline-none transition-colors focus:border-[#2C2B26]'
@@ -74,7 +75,7 @@ export default function RsvpPage() {
 
   function addQuestion(preset?: typeof COMMON_QUESTIONS[number]) {
     const newQ: RsvpQuestion = preset
-      ? { id: uid(), question: preset.question, type: preset.type, options: preset.options, required: false }
+      ? { id: uid(), question: preset.question, type: preset.type, options: preset.options, required: false, preset_key: preset.key }
       : { id: uid(), question: '', type: 'text', required: false }
     const updated = [...questions, newQ]
     setQuestions(updated)
@@ -109,6 +110,13 @@ export default function RsvpPage() {
     updateQuestion(qid, { options: (q.options ?? []).filter(o => o !== opt) })
   }
 
+  function updateYesNoOption(qid: string, index: number, value: string) {
+    const q = questions.find(question => question.id === qid)
+    const nextOptions = [...(q?.options ?? ['Yes', 'No'])]
+    nextOptions[index] = value
+    updateQuestion(qid, { options: nextOptions })
+  }
+
   return (
     <DashboardPage width="narrow" className="md:px-8">
       <DashboardPageHeader
@@ -132,10 +140,11 @@ export default function RsvpPage() {
                   value={q.question}
                   onChange={e => updateQuestion(q.id, { question: e.target.value })}
                   placeholder="Your question…"
-                  disabled={idx === 0}
                 />
                 {idx === 0 && (
-                  <p className="text-xs" style={{ color: '#B5A98A' }}>This question is required and cannot be changed.</p>
+                  <p className="text-xs" style={{ color: '#B5A98A' }}>
+                    This is the main RSVP decision. You can change the wording and button labels, but it always stays required.
+                  </p>
                 )}
               </div>
               {idx > 0 && (
@@ -150,37 +159,62 @@ export default function RsvpPage() {
                 </button>
               )}
             </div>
-            {idx > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs mb-1" style={{ color: '#8B8670' }}>Response type</label>
-                  <select
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: '#8B8670' }}>Response type</label>
+                <select
+                  className={inputCls}
+                  style={inputStyle}
+                  value={q.type}
+                  onChange={e => updateQuestion(q.id, { type: e.target.value as RsvpQuestion['type'] })}
+                  disabled={idx === 0}
+                >
+                  <option value="yes_no">Yes / No</option>
+                  <option value="text">Free text</option>
+                  <option value="dropdown">Multiple choice</option>
+                </select>
+                {idx === 0 && (
+                  <p className="text-xs mt-1" style={{ color: '#B5A98A' }}>
+                    The attending question always uses two choices.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 pt-5">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs" style={{ color: '#2C2B26' }}>
+                  <div
+                    className="w-9 h-5 rounded-full relative transition-colors"
+                    style={{ background: q.required ? '#2C2B26' : '#E8E3D9', opacity: idx === 0 ? 0.6 : 1 }}
+                    onClick={() => idx > 0 && updateQuestion(q.id, { required: !q.required })}
+                  >
+                    <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                      style={{ transform: q.required ? 'translateX(17px)' : 'translateX(2px)' }} />
+                  </div>
+                  Required
+                </label>
+              </div>
+            </div>
+            {q.type === 'yes_no' && (
+              <div>
+                <label className="block text-xs mb-2" style={{ color: '#8B8670' }}>Response labels</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <input
                     className={inputCls}
                     style={inputStyle}
-                    value={q.type}
-                    onChange={e => updateQuestion(q.id, { type: e.target.value as RsvpQuestion['type'] })}
-                  >
-                    <option value="yes_no">Yes / No</option>
-                    <option value="text">Free text</option>
-                    <option value="dropdown">Multiple choice</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 pt-5">
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs" style={{ color: '#2C2B26' }}>
-                    <div
-                      className="w-9 h-5 rounded-full relative transition-colors"
-                      style={{ background: q.required ? '#2C2B26' : '#E8E3D9' }}
-                      onClick={() => updateQuestion(q.id, { required: !q.required })}
-                    >
-                      <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200"
-                        style={{ transform: q.required ? 'translateX(17px)' : 'translateX(2px)' }} />
-                    </div>
-                    Required
-                  </label>
+                    value={q.options?.[0] ?? 'Yes'}
+                    onChange={e => updateYesNoOption(q.id, 0, e.target.value)}
+                    placeholder="Positive response"
+                  />
+                  <input
+                    className={inputCls}
+                    style={inputStyle}
+                    value={q.options?.[1] ?? 'No'}
+                    onChange={e => updateYesNoOption(q.id, 1, e.target.value)}
+                    placeholder="Negative response"
+                  />
                 </div>
               </div>
             )}
-            {q.type === 'dropdown' && idx > 0 && (
+            {q.type === 'dropdown' && (
               <div>
                 <label className="block text-xs mb-2" style={{ color: '#8B8670' }}>Options</label>
                 <div className="flex flex-col gap-1 mb-2">
@@ -223,7 +257,7 @@ export default function RsvpPage() {
       <div className="mb-6">
         {(() => {
           const availableCommon = COMMON_QUESTIONS.filter(
-            cq => !questions.some(q => q.question === cq.question)
+            cq => !questions.some(q => q.preset_key === cq.key)
           )
           return availableCommon.length > 0 ? (
             <>
