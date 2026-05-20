@@ -153,7 +153,12 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
               </a>
             )}
             {event.status !== 'published' && (
-              <PublishButton eventId={id} />
+              <PublishButton
+                eventId={id}
+                eventTitle={event.title}
+                publishFeeStatus={event.publish_fee_status}
+                isPublished={false}
+              />
             )}
           </div>
         </div>

@@ -28,6 +28,25 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient()
 
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+    if (session.metadata?.purpose === 'publish_event' && session.metadata?.event_id) {
+      const { error } = await supabase
+        .from('events')
+        .update({
+          publish_fee_status: 'paid',
+          publish_fee_paid_at: new Date().toISOString(),
+          publish_fee_checkout_session_id: session.id,
+        })
+        .eq('id', session.metadata.event_id)
+
+      if (error) {
+        console.error('[Stripe webhook] Failed to unlock publishing:', error)
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
+      }
+    }
+  }
+
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object
     const paymentIntentId = paymentIntent.id
@@ -47,6 +66,13 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'payment_intent.payment_failed') {
     const paymentIntent = event.data.object
+
+    if (paymentIntent.metadata?.purpose === 'publish_event' && paymentIntent.metadata?.event_id) {
+      await supabase
+        .from('events')
+        .update({ publish_fee_status: 'unpaid' })
+        .eq('id', paymentIntent.metadata.event_id)
+    }
 
     await supabase
       .from('contributions')

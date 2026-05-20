@@ -4,6 +4,9 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-01-28.clover',
 })
 
+export const PUBLISH_EVENT_FEE_CENTS = 4900
+export const PUBLISH_EVENT_PRICE_ID = process.env.STRIPE_PUBLISH_PRICE_ID
+
 export const JOYABL_FEE_RATE = 0.0498 // 4.98% (GST-inclusive for AU)
 
 /**

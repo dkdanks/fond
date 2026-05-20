@@ -2,6 +2,7 @@ export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming' |
 export type RsvpStatus = 'pending' | 'attending' | 'declined'
 export type ContributionStatus = 'pending' | 'completed' | 'refunded'
 export type EventStatus = 'draft' | 'published'
+export type PublishFeeStatus = 'unpaid' | 'pending' | 'paid'
 export type ImageUploadProfile = 'hero' | 'section' | 'avatar' | 'card'
 
 export interface UploadedImageAsset {
@@ -149,6 +150,10 @@ export interface Event {
   primary_color: string
   accent_color: string
   status: EventStatus
+  publish_fee_status: PublishFeeStatus
+  publish_fee_paid_at: string | null
+  publish_fee_checkout_session_id: string | null
+  published_at: string | null
   content: EventContent | null
   created_at: string
 }

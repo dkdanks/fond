@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardPage, DashboardPageHeader, DashboardSectionLabel } from '@/components/dashboard/page-layout'
 import { DashboardCard } from '@/components/dashboard/surface'
+import { PublishButton } from '@/components/dashboard/publish-button'
 import { guardEvent } from '@/lib/event-guard'
 import type { Event, EventType } from '@/types'
 import { EVENT_TYPE_LABELS } from '@/types'
@@ -185,11 +186,10 @@ export default function SettingsPage() {
     flashSaved('slug')
   }
 
-  async function handleStatusToggle() {
+  async function handleStatusToggle(targetStatus: 'draft' | 'published') {
     if (!event) return
-    const newStatus = event.status === 'published' ? 'draft' : 'published'
-    await autoSave({ status: newStatus })
-    setEvent(prev => prev ? { ...prev, status: newStatus } : prev)
+    await autoSave({ status: targetStatus, published_at: targetStatus === 'published' ? new Date().toISOString() : event.published_at })
+    setEvent(prev => prev ? { ...prev, status: targetStatus } : prev)
     flashSaved('status')
   }
 
@@ -425,7 +425,7 @@ export default function SettingsPage() {
 
         <div className="grid gap-3 md:grid-cols-2">
           <button
-            onClick={() => event.status === 'published' && handleStatusToggle()}
+            onClick={() => event.status === 'published' && handleStatusToggle('draft')}
             className="rounded-2xl border p-4 text-left transition-colors"
             style={{
               borderColor: event.status === 'draft' ? '#2C2B26' : '#E8E3D9',
@@ -448,29 +448,35 @@ export default function SettingsPage() {
             </div>
           </button>
 
-          <button
-            onClick={() => event.status === 'draft' && handleStatusToggle()}
-            className="rounded-2xl border p-4 text-left transition-colors"
-            style={{
-              borderColor: event.status === 'published' ? '#2C2B26' : '#E8E3D9',
-              background: event.status === 'published' ? '#FAFAF7' : '#FFFFFF',
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ background: '#F0FDF4', color: '#15803D' }}
-              >
-                <Eye size={15} />
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Make live</p>
-                <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
-                  Publish the page so guests can view it using your shareable event link.
-                </p>
+          {event.status === 'draft' ? (
+            <PublishButton
+              eventId={id}
+              eventTitle={event.title}
+              publishFeeStatus={event.publish_fee_status}
+              isPublished={false}
+              variant="card"
+            />
+          ) : (
+            <div
+              className="rounded-2xl border p-4 text-left"
+              style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ background: '#F0FDF4', color: '#15803D' }}
+                >
+                  <Eye size={15} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Event is live</p>
+                  <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                    Guests can view this event right now using your shareable link.
+                  </p>
+                </div>
               </div>
             </div>
-          </button>
+          )}
         </div>
         {savedField === 'status' && <p className="text-xs mt-3" style={{ color: '#4CAF50' }}>Saved</p>}
       </DashboardCard>

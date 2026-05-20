@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { EventType } from '@/types'
+import { canCreateAnotherUpcomingEvent } from '@/lib/events'
 import { resolveFontFamily } from '@/lib/font-family'
 import { THEMES, type Theme } from '@/lib/themes'
 import {
@@ -177,11 +178,28 @@ export default function NewEventPage() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [creating, setCreating] = useState(false)
+  const [canCreateEvent, setCanCreateEvent] = useState(true)
+  const [limitMessage, setLimitMessage] = useState('')
 
   // Step 5
   const [selectedTheme, setSelectedTheme] = useState<Theme>(THEMES[0])
 
   const title = getEventTitle(type, hostName, partnerName)
+
+  useEffect(() => {
+    async function loadLimit() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: events } = await supabase
+        .from('events')
+        .select('date')
+        .eq('user_id', user.id)
+      setCanCreateEvent(canCreateAnotherUpcomingEvent(events ?? []))
+    }
+
+    void loadLimit()
+  }, [])
 
   // Generate suggestions when entering step 4
   useEffect(() => {
@@ -226,6 +244,10 @@ export default function NewEventPage() {
 
   async function handleCreate() {
     if (slugStatus !== 'available') return
+    if (!canCreateEvent) {
+      setLimitMessage('You can only have 3 upcoming events at the same time.')
+      return
+    }
     setCreating(true)
 
     const supabase = createClient()
@@ -262,6 +284,9 @@ export default function NewEventPage() {
       .single()
 
     if (error || !event) {
+      setLimitMessage(error?.message?.includes('3 upcoming events')
+        ? 'You can only have 3 upcoming events at the same time.'
+        : '')
       setCreating(false)
       return
     }
@@ -335,6 +360,11 @@ export default function NewEventPage() {
         }}
       >
         <div className="w-full max-w-lg">
+          {!canCreateEvent && (
+            <div className="mb-8 rounded-2xl border px-4 py-3" style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#8B8670' }}>
+              You already have 3 upcoming events. Mark one as complete by letting its date pass before creating another.
+            </div>
+          )}
 
           {/* STEP 1: Event type */}
           {step === 1 && (
@@ -669,13 +699,16 @@ export default function NewEventPage() {
                 <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
                 <button
                   onClick={handleCreate}
-                  disabled={!step5Valid || creating}
+                  disabled={!step5Valid || creating || !canCreateEvent}
                   className="px-7 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
                   style={{ background: step5Valid ? '#2C2B26' : '#E8E3D9', color: step5Valid ? 'white' : '#B5A98A' }}
                 >
                   {creating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : 'Create your page'}
                 </button>
               </div>
+              {limitMessage && (
+                <p className="mt-3 text-sm" style={{ color: '#8B8670' }}>{limitMessage}</p>
+              )}
             </div>
           )}
         </div>
