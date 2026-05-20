@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check } from 'lucide-react'
+import { usePublicGuestContext } from '@/lib/public-guest-context'
 
 export interface RsvpQuestion {
   id: string
@@ -27,7 +27,7 @@ interface Props {
 
 export default function RsvpForm({ slug, eventId, eventTitle, questions, primaryColor, bgColor, font }: Props) {
   const supabase = createClient()
-  const searchParams = useSearchParams()
+  const { name, setName, email, setEmail, withGuestContext } = usePublicGuestContext(slug)
 
   const [answers, setAnswers] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
@@ -35,8 +35,6 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
     if (attendQuestion) init.attend = attendQuestion.options?.[0] ?? "I'll be there"
     return init
   })
-  const [name, setName] = useState(searchParams.get('name') ?? '')
-  const [email, setEmail] = useState(searchParams.get('email') ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -119,7 +117,7 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
             : "Thanks for letting us know. You'll be missed!"}
         </p>
         <Link
-          href={`/e/${slug}`}
+          href={withGuestContext(`/e/${slug}`)}
           className="px-6 py-2.5 rounded-xl text-sm font-medium border transition-colors"
           style={{ borderColor: primaryColor, color: primaryColor }}
         >
@@ -139,7 +137,7 @@ export default function RsvpForm({ slug, eventId, eventTitle, questions, primary
         style={{ borderColor: `${primaryColor}15` }}
       >
         <Link
-          href={`/e/${slug}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+          href={withGuestContext(`/e/${slug}`)}
           className="flex items-center gap-1.5 text-sm"
           style={{ color: primaryColor, opacity: 0.6, textDecoration: 'none' }}
         >
