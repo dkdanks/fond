@@ -14,11 +14,22 @@ export const EVENT_TYPES: { type: EventType; label: string; description: string;
   { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
 
+function formatDateOnly(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
 export function CalendarPicker({ selected, onChange }: { selected: string; onChange: (date: string) => void }) {
   const today = new Date()
+  const selectedDate = selected ? parseDateOnly(selected) : null
   const [viewing, setViewing] = useState({
-    year: selected ? new Date(selected).getFullYear() : today.getFullYear(),
-    month: selected ? new Date(selected).getMonth() : today.getMonth(),
+    year: selectedDate?.getFullYear() ?? today.getFullYear(),
+    month: selectedDate?.getMonth() ?? today.getMonth(),
   })
 
   const firstDay = new Date(viewing.year, viewing.month, 1).getDay()
@@ -34,16 +45,14 @@ export function CalendarPicker({ selected, onChange }: { selected: string; onCha
   }
 
   function selectDay(day: number) {
-    const nextDate = new Date(viewing.year, viewing.month, day)
-    onChange(nextDate.toISOString().split('T')[0])
+    onChange(formatDateOnly(viewing.year, viewing.month, day))
   }
 
-  const selectedDay = selected ? new Date(selected) : null
   const isSelected = (day: number) => {
-    if (!selectedDay) return false
-    return selectedDay.getFullYear() === viewing.year &&
-      selectedDay.getMonth() === viewing.month &&
-      selectedDay.getDate() === day
+    if (!selectedDate) return false
+    return selectedDate.getFullYear() === viewing.year &&
+      selectedDate.getMonth() === viewing.month &&
+      selectedDate.getDate() === day
   }
 
   const isPast = (day: number) => {

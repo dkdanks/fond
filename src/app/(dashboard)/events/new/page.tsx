@@ -21,6 +21,16 @@ const EVENT_TYPES: { type: EventType; label: string; description: string; icon: 
   { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
 
+function formatDateOnly(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
 function slugify_local(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
@@ -63,9 +73,10 @@ function getEventTitle(type: EventType, hostName: string, partnerName: string): 
 // Simple calendar component
 function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d: string) => void }) {
   const today = new Date()
+  const selectedDate = selected ? parseDateOnly(selected) : null
   const [viewing, setViewing] = useState({
-    year: selected ? new Date(selected).getFullYear() : today.getFullYear(),
-    month: selected ? new Date(selected).getMonth() : today.getMonth(),
+    year: selectedDate?.getFullYear() ?? today.getFullYear(),
+    month: selectedDate?.getMonth() ?? today.getMonth(),
   })
 
   const firstDay = new Date(viewing.year, viewing.month, 1).getDay()
@@ -81,17 +92,14 @@ function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d
   }
 
   function selectDay(day: number) {
-    const d = new Date(viewing.year, viewing.month, day)
-    const str = d.toISOString().split('T')[0]
-    onChange(str)
+    onChange(formatDateOnly(viewing.year, viewing.month, day))
   }
 
-  const selectedDay = selected ? new Date(selected) : null
   const isSelected = (day: number) => {
-    if (!selectedDay) return false
-    return selectedDay.getFullYear() === viewing.year &&
-      selectedDay.getMonth() === viewing.month &&
-      selectedDay.getDate() === day
+    if (!selectedDate) return false
+    return selectedDate.getFullYear() === viewing.year &&
+      selectedDate.getMonth() === viewing.month &&
+      selectedDate.getDate() === day
   }
 
   const isPast = (day: number) => {
