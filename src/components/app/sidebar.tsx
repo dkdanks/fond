@@ -5,14 +5,19 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   House, LayoutTemplate, Gift, Users,
-  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut, Menu, X
+  Settings, HelpCircle, UserCircle, ChevronLeft, ChevronRight, LogOut, Menu, X, ChevronDown, CheckCircle2, Plus
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { HelpModal } from '@/components/app/help-modal'
+import { getEventLifecycleStatus } from '@/lib/events'
 
 interface SidebarProps {
   eventId: string
   userEmail?: string | null
+  currentEventTitle: string
+  currentEventDate: string | null
+  events: Array<{ id: string; title: string; date: string | null; status: 'draft' | 'published' }>
+  canCreateEvent: boolean
 }
 
 interface SubItem {
@@ -62,10 +67,18 @@ const navStructure = (eventId: string): NavItem[] => [
   },
 ]
 
-export function AppSidebar({ eventId, userEmail }: SidebarProps) {
+export function AppSidebar({
+  eventId,
+  userEmail,
+  currentEventTitle,
+  currentEventDate,
+  events,
+  canCreateEvent,
+}: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -75,6 +88,7 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
     return () => document.removeEventListener('keydown', handler)
   }, [mobileOpen])
   const router = useRouter()
+  const currentLifecycle = getEventLifecycleStatus(currentEventDate)
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -91,12 +105,89 @@ export function AppSidebar({ eventId, userEmail }: SidebarProps) {
         style={{ borderColor: '#E8E3D9' }}
       >
         {!collapsed && (
-          <span
-            className="flex-1 text-sm font-semibold tracking-tight ml-1"
-            style={{ color: '#2C2B26', letterSpacing: '-0.04em' }}
-          >
-            joyabl
-          </span>
+          <div className="flex-1 pr-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSwitcherOpen(value => !value)}
+                className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-black/5"
+                style={{ color: '#2C2B26' }}
+              >
+                <span
+                  className="text-[18px] font-medium leading-none"
+                  style={{ letterSpacing: '-0.07em' }}
+                >
+                  joyabl
+                </span>
+                <span className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>
+                  {currentEventTitle}
+                </span>
+                <ChevronDown size={14} style={{ color: '#8B8670' }} />
+              </button>
+
+              {switcherOpen && (
+                <div
+                  className="absolute left-0 top-[calc(100%+10px)] z-50 w-[280px] rounded-2xl border shadow-xl"
+                  style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}
+                >
+                  <div className="border-b px-4 py-3" style={{ borderColor: '#F0EDE8' }}>
+                    <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>Your events</p>
+                    <p className="mt-1 text-xs" style={{ color: '#8B8670' }}>
+                      {currentLifecycle === 'coming_up' ? 'Coming up' : 'Complete'}
+                    </p>
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto p-2">
+                    {events.map(event => {
+                      const isCurrent = event.id === eventId
+                      const lifecycle = getEventLifecycleStatus(event.date)
+                      return (
+                        <Link
+                          key={event.id}
+                          href={`/events/${event.id}/home`}
+                          onClick={() => {
+                            setSwitcherOpen(false)
+                            setMobileOpen(false)
+                          }}
+                          className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors"
+                          style={{ background: isCurrent ? '#FAFAF7' : 'transparent' }}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium" style={{ color: '#2C2B26' }}>{event.title}</p>
+                            <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: '#8B8670' }}>
+                              <span>{lifecycle === 'coming_up' ? 'Coming up' : 'Complete'}</span>
+                              <span>•</span>
+                              <span>{event.status === 'published' ? 'Live' : 'Draft'}</span>
+                            </div>
+                          </div>
+                          {isCurrent && <CheckCircle2 size={14} style={{ color: '#8B8670' }} />}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                  <div className="border-t p-3" style={{ borderColor: '#F0EDE8' }}>
+                    {canCreateEvent ? (
+                      <Link
+                        href="/events/new"
+                        onClick={() => {
+                          setSwitcherOpen(false)
+                          setMobileOpen(false)
+                        }}
+                        className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium"
+                        style={{ background: '#2C2B26', color: '#FAFAF7' }}
+                      >
+                        <Plus size={14} />
+                        Create new event
+                      </Link>
+                    ) : (
+                      <div className="rounded-xl px-3 py-2 text-sm" style={{ background: '#FAFAF7', color: '#8B8670' }}>
+                        You can have up to 3 upcoming events at once.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
         {collapsed && <div className="flex-1" />}
 
