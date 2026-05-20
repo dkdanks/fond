@@ -60,6 +60,6 @@ body {
 }
 
 ::selection {
-  background: var(--gold-light);
+  background: var(--linen);
   color: var(--foreground);
 }

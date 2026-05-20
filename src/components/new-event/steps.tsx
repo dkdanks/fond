@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { ElementType } from 'react'
-import { ChevronLeft, ChevronRight, Gift, Heart, House, Loader2, Sparkles, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Gift, Heart, House, Loader2, Sparkles, Star, Wand2 } from 'lucide-react'
 import type { EventType } from '@/types'
 
 export const EVENT_TYPES: { type: EventType; label: string; description: string; icon: ElementType }[] = [
@@ -11,6 +11,7 @@ export const EVENT_TYPES: { type: EventType; label: string; description: string;
   { type: 'mitzvah', label: 'Bar / Bat Mitzvah', description: 'Mark this milestone', icon: Star },
   { type: 'housewarming', label: 'Housewarming', description: 'Celebrate a new home', icon: House },
   { type: 'birthday', label: 'Birthday', description: 'Another trip around the sun', icon: Gift },
+  { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
 
 export function CalendarPicker({ selected, onChange }: { selected: string; onChange: (date: string) => void }) {

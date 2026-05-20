@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { EVENT_TYPE_COLORS, type EventType } from '@/types'
+import type { EventType } from '@/types'
 import { resolveFontFamily } from '@/lib/font-family'
 import { THEMES, type Theme } from '@/lib/themes'
 import {
-  Heart, Sparkles, Star, House, Gift,
+  Heart, Sparkles, Star, House, Gift, Wand2,
   ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react'
 
@@ -17,6 +17,7 @@ const EVENT_TYPES: { type: EventType; label: string; description: string; icon: 
   { type: 'mitzvah', label: 'Bar / Bat Mitzvah', description: 'Mark this milestone', icon: Star },
   { type: 'housewarming', label: 'Housewarming', description: 'Celebrate a new home', icon: House },
   { type: 'birthday', label: 'Birthday', description: 'Another trip around the sun', icon: Gift },
+  { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
 
 function slugify_local(str: string): string {
@@ -53,6 +54,7 @@ function getEventTitle(type: EventType, hostName: string, partnerName: string): 
     mitzvah: 'Bar Mitzvah',
     housewarming: 'Housewarming',
     birthday: 'Birthday',
+    other: 'Celebration',
   }
   return `${hostName}'s ${labels[type]}`
 }
@@ -230,7 +232,7 @@ export default function NewEventPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const defaultContent = getDefaultContent(type, hostName, partnerName)
+    const defaultContent = getDefaultContent(type, hostName)
     const contentWithTheme = {
       ...defaultContent,
       _theme: selectedTheme.id,
@@ -271,6 +273,7 @@ export default function NewEventPage() {
       mitzvah: 'Celebration Fund',
       housewarming: 'Home Sweet Home Fund',
       birthday: 'Birthday Fund',
+      other: 'Celebration Fund',
     }
     await supabase.from('registry_pools').insert({
       event_id: event.id,
@@ -340,7 +343,7 @@ export default function NewEventPage() {
                 What are you celebrating?
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                Choose and we'll set everything up for you.
+                Choose and we&apos;ll set everything up for you.
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-10">
@@ -386,10 +389,10 @@ export default function NewEventPage() {
           {step === 2 && (
             <div>
               <h1 className="text-3xl font-semibold mb-2" style={{ color: '#2C2B26' }}>
-                {type === 'wedding' ? "Let's start with your names." : "What's your name?"}
+                {type === 'wedding' ? 'Let&apos;s start with your names.' : 'What&apos;s your name?'}
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                {type === 'wedding' ? "We'll use these across your page." : "We'll personalise your page for you."}
+                {type === 'wedding' ? 'We&apos;ll use these across your page.' : 'We&apos;ll personalise your page for you.'}
               </p>
 
               {type === 'wedding' ? (
@@ -493,7 +496,7 @@ export default function NewEventPage() {
                     style={{ transform: dateUndecided ? 'translateX(21px)' : 'translateX(2px)' }}
                   />
                 </div>
-                <span className="text-sm" style={{ color: '#2C2B26' }}>We haven't decided yet</span>
+                <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&apos;t decided yet</span>
               </label>
 
               {/* Location */}
@@ -532,7 +535,7 @@ export default function NewEventPage() {
                 Choose your URL.
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                This is the link you'll share with your guests.
+                This is the link you&apos;ll share with your guests.
               </p>
 
               {/* URL input */}
@@ -682,7 +685,7 @@ export default function NewEventPage() {
 }
 
 // Generate sensible default content for the event
-function getDefaultContent(type: EventType, hostName: string, partnerName: string) {
+function getDefaultContent(type: EventType, hostName: string) {
   if (type === 'wedding') {
     return {
       welcome: {
@@ -802,6 +805,31 @@ function getDefaultContent(type: EventType, hostName: string, partnerName: strin
       faq: [
         { id: '1', question: "What's the dress code?", answer: "Smart / semi-formal. Please no white." },
         { id: '2', question: "Is there parking?", answer: "Yes, parking is available nearby." },
+      ],
+    }
+  }
+
+  if (type === 'other') {
+    return {
+      welcome: {
+        greeting: `We are so excited to celebrate this moment with the people who matter most. Thank you for being part of it.`,
+        show_rsvp: true,
+      },
+      our_story: {
+        introduction: `${hostName || 'We'} wanted one place to share the details and bring everyone together.`,
+        story: `We cannot wait to celebrate with you. You can use this page to share the plan, collect RSVPs, and point guests to anything they might need before the day.`,
+        images: [],
+      },
+      schedule: [
+        { id: '1', title: 'Guests arrive', time: '5:00 PM', venue: '', address: '', notes: '' },
+        { id: '2', title: 'Celebration begins', time: '6:00 PM', venue: '', address: '', notes: '' },
+      ],
+      registry: {
+        note: `If you'd like to contribute, we've added a few thoughtful options here. No pressure at all.`,
+      },
+      faq: [
+        { id: '1', question: 'What should I wear?', answer: 'Dress in whatever feels right for the occasion. You can update this to match your event.' },
+        { id: '2', question: 'Do I need to bring anything?', answer: 'Just yourself. Add any extra notes here if guests should know more.' },
       ],
     }
   }

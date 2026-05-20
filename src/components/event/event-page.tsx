@@ -1,13 +1,13 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { Event, EventContent, PlacedSticker, WeddingPartyMember } from '@/types'
 import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
 import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
 import { resolveFontFamily } from '@/lib/font-family'
 import { customSectionImageAdjustmentKey, getImageFrameStyle, heroImageAdjustmentKey, storyImageAdjustmentKey, weddingPartyImageAdjustmentKey } from '@/lib/image-presentation'
-import { getLegacyPageStickers, getSectionStickers } from '@/lib/stickers'
+import { getLegacyPageStickers, getSectionStickers, type StickerViewport } from '@/lib/stickers'
 import { formatDate } from '@/lib/utils'
 
 type SectionKey = 'welcome' | 'story' | 'schedule' | 'wedding_party' | 'attire' | 'travel' | 'registry' | 'faq'
@@ -18,6 +18,7 @@ const SECTIONS_BY_TYPE: Record<string, SectionKey[]> = {
   birthday: ['welcome', 'schedule', 'registry', 'faq'],
   mitzvah: ['welcome', 'story', 'schedule', 'attire', 'travel', 'registry', 'faq'],
   housewarming: ['welcome', 'schedule', 'registry', 'faq'],
+  other: ['welcome', 'story', 'schedule', 'registry', 'faq'],
 }
 
 const ROLE_LABELS: Record<WeddingPartyMember['role'], string> = {
@@ -76,12 +77,16 @@ interface EventPageProps {
   rsvpHref: string
   registryHref: string
   topPaddingClassName?: string
+  viewport?: StickerViewport
   editor?: {
-    activeStickerSection: string
     onSectionStickersChange: (sectionKey: string, nextStickers: PlacedSticker[]) => void
     onSectionClick: (sectionKey: string) => void
     onSectionSpacingChange?: (sectionKey: string, spacing: number) => void
     sectionLayerRefs: { current: Record<string, HTMLDivElement | null> }
+    viewport: StickerViewport
+    selectedStickerId: string | null
+    onSelectSticker: (stickerId: string | null) => void
+    onBeginStickerChange?: (stickers: PlacedSticker[]) => void
   }
 }
 
@@ -156,8 +161,23 @@ export function EventPage({
   rsvpHref,
   registryHref,
   topPaddingClassName,
+  viewport,
   editor,
 }: EventPageProps) {
+  const [responsiveViewport, setResponsiveViewport] = useState<StickerViewport>('desktop')
+
+  useEffect(() => {
+    if (viewport) return
+
+    function syncViewport() {
+      setResponsiveViewport(window.innerWidth < 768 ? 'mobile' : 'desktop')
+    }
+
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [viewport])
+
   const content: EventContent = event.content ?? {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,6 +217,7 @@ export function EventPage({
   const spacingFor = (sectionKey: string) => Math.max(0, Math.min(240, sectionSpacing[sectionKey] ?? 0))
   const legacyPageStickers = getLegacyPageStickers(placedStickers)
   const isEditable = Boolean(editor)
+  const stickerViewport = editor?.viewport ?? viewport ?? responsiveViewport
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rsvpButtonText = (c.welcome as any)?.rsvp_button_text as string | undefined
   const welcomeBackgroundColor = c.welcome?.background_color?.trim() || undefined
@@ -445,15 +466,19 @@ export function EventPage({
   ) {
     const spacing = spacingFor(sectionKey)
     const sectionStickers = getSectionStickers(placedStickers, sectionKey)
-    const overlay = editor && editor.activeStickerSection === sectionKey
+    const overlay = editor
       ? (
         <StickerCanvas
           stickers={sectionStickers}
           onChange={next => editor.onSectionStickersChange(sectionKey, next)}
           primaryColor={primaryColor}
+          viewport={editor.viewport}
+          selectedId={editor.selectedStickerId}
+          onSelect={editor.onSelectSticker}
+          onBeginChange={editor.onBeginStickerChange}
         />
       )
-      : <StickerOverlay stickers={sectionStickers} />
+      : <StickerOverlay stickers={sectionStickers} viewport={stickerViewport} />
 
     return (
       <div
@@ -551,7 +576,7 @@ export function EventPage({
         )
       })}
 
-      <StickerOverlay stickers={legacyPageStickers} />
+      <StickerOverlay stickers={legacyPageStickers} viewport={stickerViewport} />
 
       <div className="border-t py-8 text-center" style={{ borderColor: `${primaryColor}10` }}>
         <p className="text-xs opacity-25">Powered by Joyabl</p>
