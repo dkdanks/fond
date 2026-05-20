@@ -12,6 +12,7 @@ export const getPublicEventBySlug = cache(async (slug: string): Promise<PublicEv
     .from('events')
     .select('*, access_password')
     .eq('slug', slug)
+    .eq('status', 'published')
     .single()
 
   return (data as PublicEventRow | null) ?? null
