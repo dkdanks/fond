@@ -14,7 +14,7 @@ const RSVP_OPTIONS: Array<{ label: string; active: boolean }> = [
 const FEATURE_CARDS = [
   {
     title: 'Website',
-    description: 'Create a beautiful page for your story, schedule and every detail.',
+    description: 'Create a page that feels polished from the first glance, with space for your story, schedule, and details.',
     accent: '#F5F0E8',
     art: (
       <div
@@ -101,7 +101,7 @@ const FEATURE_CARDS = [
   },
   {
     title: 'RSVP',
-    description: 'Meal choices, plus-ones and everything you need to know - collected in one place.',
+    description: 'Let guests respond beautifully, with room for meal choices, plus-ones, and the details that matter to you.',
     accent: '#6B7A5E',
     art: (
       <div
@@ -156,7 +156,7 @@ const FEATURE_CARDS = [
   },
   {
     title: 'Guest List',
-    description: 'Everyone tracked, nothing missed. Focus on the celebration, not the spreadsheet.',
+    description: 'Keep everyone in one calm, organised place so you can focus on the celebration, not the spreadsheet.',
     accent: '#8B8670',
     art: (
       <div
@@ -212,8 +212,8 @@ const FEATURE_CARDS = [
 const FLOW_STEPS = [
   {
     eyebrow: '01',
-    title: 'Create your event page',
-    body: "Create a personalised event page that feels as considered as the occasion itself. Your guests see something beautiful, and you stay in control of every detail.",
+    title: 'Style your website',
+    body: 'Start with a page that feels considered and easy to share. Your guests see something beautiful, and you stay in control of every detail.',
     accent: '#8B8670',
     visual: (
       <div
@@ -250,8 +250,8 @@ const FLOW_STEPS = [
   },
   {
     eyebrow: '02',
-    title: 'Invite your guests',
-    body: 'Send a personalised invite to your entire guest list at once. From the moment they open it, everything they need is right there - event details, RSVP, and gift registry.',
+    title: 'Share it with ease',
+    body: 'Invite guests into one simple experience where they can RSVP, check the details, and feel looked after from the moment they open the link.',
     accent: '#6B7A5E',
     visual: (
       <div
@@ -314,7 +314,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '03',
     title: 'Receive what matters',
-    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that actually matters to you.",
+    body: 'When guests want to give, the experience feels warm and intentional. Contributions go toward the things you actually care about.',
     accent: '#B5A98A',
     visual: (
       <div
@@ -373,14 +373,14 @@ const REVIEWS = [
 const FAQS = [
   {
     question: 'What can I create with Joyabl?',
-    answer: 'A beautiful event website, a thoughtful registry, effortless RSVP management, and a guest list that stays organised from start to finish.',
+    answer: 'A beautiful event website, a thoughtful registry, RSVP collection, and a guest list that stays organised from start to finish.',
   },
   {
-    question: 'What types of events can I use Joyabl for?',
-    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it's worth celebrating, Joyabl works for it.",
+    question: 'Do I need to choose an event type on the homepage?',
+    answer: 'No. You can start with the overall experience first, then choose the celebration that fits best once you begin.',
   },
   {
-    question: "Can I build my page before I'm ready to publish?",
+    question: 'Can I use Joyabl before I am ready to publish?',
     answer: 'Yes. You can start building your page and shaping the experience before you decide to go live.',
   },
 ]
@@ -470,10 +470,10 @@ function FlowSection() {
             className="mb-5"
             style={{ fontSize: 'clamp(32px, 4vw, 48px)', lineHeight: 1.02, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500 }}
           >
-            Less admin. More anticipation.
+            Build the feeling first, then let the details follow.
           </h2>
           <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 620 }}>
-            Joyabl takes care of the practical parts so you can stay in the moment that matters.
+            Joyabl is designed to make the practical parts of planning feel as good as the celebration itself.
           </p>
         </div>
 
@@ -579,15 +579,16 @@ export function LandingSections() {
         <div className="max-w-6xl mx-auto px-6 py-24 lg:py-28">
           <div className="max-w-2xl mb-14">
             <p className="text-[11px] uppercase tracking-[0.24em] mb-5" style={{ color: '#8B8670' }}>
+              Everything in one place
             </p>
             <h2
               className="mb-5"
               style={{ fontSize: 'clamp(32px, 4.3vw, 50px)', lineHeight: 1.02, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500 }}
             >
-              Everything your guests need - all in one place.
+              A thoughtful way to host beautifully.
             </h2>
             <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 640 }}>
-              Your personalised event page, your guests, your registry. One link.
+              The pieces work together so your website, registry, RSVPs, and guest list feel like one calm, considered experience.
             </p>
           </div>
 
@@ -627,18 +628,18 @@ export function LandingSections() {
                 Start with the vision, then go live when you are ready.
               </h2>
               <p className="text-base leading-7" style={{ color: 'rgba(250,250,247,0.78)', margin: 0 }}>
-                Create your page, shape your registry, and organise your guests - take all the time you need. When everything feels right, you're ready to publish.
+                Create your page, shape your registry, and organise your guests before you publish. Joyabl keeps the experience simple and polished from beginning to launch.
               </p>
             </div>
 
             <div className="rounded-[30px] p-7 md:p-8" style={{ background: '#FFFFFF', boxShadow: '0 30px 60px rgba(44,43,38,0.18)' }}>
               <div className="flex items-end justify-between gap-6 pb-6 mb-6" style={{ borderBottom: '1px solid #E8E3DA' }}>
                 <div>
-                  <p style={{ margin: '0 0 8px', fontSize: 13, color: '#8B8670' }}>One-time publishing fee</p>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, color: '#8B8670' }}>One-time publish fee</p>
                   <p style={{ margin: 0, fontSize: 'clamp(52px, 8vw, 76px)', lineHeight: 0.92, letterSpacing: '-0.06em', color: '#2C2B26', fontWeight: 500 }}>$49</p>
                 </div>
                 <p style={{ margin: 0, fontSize: 14, color: '#6B6255', maxWidth: 180 }}>
-                  A 4.98% card transaction fee applies to contributions.
+                  Then 4.98% applies to contributions only.
                 </p>
               </div>
 
@@ -674,7 +675,7 @@ export function LandingSections() {
                 Social proof
               </p>
               <h2 style={{ fontSize: 'clamp(30px, 4vw, 46px)', lineHeight: 1.04, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500, margin: '0 0 14px' }}>
-                For celebrations where the details matter.
+                Made for celebrations that care about the details.
               </h2>
               <p className="text-base leading-7" style={{ color: '#6B6255', margin: 0 }}>
                 Joyabl is chosen by hosts who want something that feels warm, modern, and easy to share.
