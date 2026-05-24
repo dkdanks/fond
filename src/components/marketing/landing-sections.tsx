@@ -1,52 +1,25 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-const RSVP_OPTIONS: Array<{ label: string; active: boolean }> = [
-  { label: 'Accepts with pleasure', active: true },
-  { label: 'Declines with love', active: false },
-  { label: 'Meal preference collected', active: false },
-]
 
 const FEATURE_CARDS = [
   {
     title: 'Website',
-    description: 'Create a page that feels polished from the first glance, with space for your story, schedule, and details.',
+    description: 'Create a beautiful page for your story, schedule and every detail.',
     accent: '#F5F0E8',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #c9c4bc 0%, #8a847c 100%)',
-          padding: 14,
-          minHeight: 220,
-        }}
-      >
-        <div
-          style={{
-            borderRadius: 18,
-            background: 'rgba(255,255,255,0.9)',
-            padding: 12,
-            minHeight: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <div style={{ height: 92, borderRadius: 14, background: 'linear-gradient(135deg, #C8BFA8 0%, #FAFAF7 100%)' }} />
-          <div style={{ width: '48%', height: 7, borderRadius: 999, background: '#2C2B26' }} />
-          <div style={{ width: '78%', height: 4, borderRadius: 999, background: '#B5A98A' }} />
-          <div style={{ width: '66%', height: 4, borderRadius: 999, background: '#D7D1C4' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 'auto' }}>
-            <div style={{ height: 44, borderRadius: 12, background: '#F5F0E8' }} />
-            <div style={{ height: 44, borderRadius: 12, background: '#FAFAF7', border: '1px solid #E8E3DA' }} />
-          </div>
-        </div>
-      </div>
+      <Image
+        src="/images/website-frame.png"
+        alt="Website feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
@@ -54,157 +27,41 @@ const FEATURE_CARDS = [
     description: 'Guide guests toward contributions that feel thoughtful, personal, and genuinely useful for your next chapter.',
     accent: '#C8BFA8',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          background: 'linear-gradient(180deg, #FAFAF7 0%, #F5F0E8 100%)',
-          border: '1px solid #E8E3DA',
-          padding: 16,
-          minHeight: 220,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        {[
-          ['Weekend away', '62% funded', '62%'],
-          ['New home pieces', '41% funded', '41%'],
-          ['Dinner in Italy', '78% funded', '78%'],
-        ].map(([label, meta, progress]) => (
-          <div
-            key={label}
-            style={{
-              borderRadius: 16,
-              background: '#FFFFFF',
-              padding: 14,
-              boxShadow: '0 18px 40px rgba(44,43,38,0.05)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#2C2B26' }}>{label}</p>
-              <p style={{ margin: 0, fontSize: 11, color: '#8B8670' }}>{meta}</p>
-            </div>
-            <div style={{ height: 7, borderRadius: 999, background: '#F5F0E8', overflow: 'hidden' }}>
-          <div
-                style={{
-                  width: progress,
-                  height: '100%',
-                  borderRadius: 999,
-                  background: 'linear-gradient(90deg, #3f3a35 0%, #959089 100%)',
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <Image
+        src="/images/registry-frame.png"
+        alt="Registry feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
     title: 'RSVP',
-    description: 'Let guests respond beautifully, with room for meal choices, plus-ones, and the details that matter to you.',
+    description: 'Meal choices, plus-ones and everything you need to know - collected in one place.',
     accent: '#6B7A5E',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #d4d0c9 0%, #938d84 100%)',
-          padding: 16,
-          minHeight: 220,
-        }}
-      >
-        <div
-          style={{
-            borderRadius: 18,
-            background: '#FFFFFF',
-            minHeight: '100%',
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <div style={{ width: '54%', height: 7, borderRadius: 999, background: '#2C2B26' }} />
-          {RSVP_OPTIONS.map(({ label, active }) => (
-            <div
-              key={label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                borderRadius: 14,
-                padding: '11px 12px',
-                background: active ? '#F5F0E8' : '#FAFAF7',
-              }}
-            >
-              <div
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  border: `1.5px solid ${active ? '#6d685f' : '#C8BFA8'}`,
-                  background: active ? '#6d685f' : 'transparent',
-                  boxShadow: active ? 'inset 0 0 0 4px #F5F0E8' : 'none',
-                }}
-              />
-              <span style={{ fontSize: 12, color: '#2C2B26' }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Image
+        src="/images/rsvp-frame.png"
+        alt="RSVP feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
     title: 'Guest List',
-    description: 'Keep everyone in one calm, organised place so you can focus on the celebration, not the spreadsheet.',
+    description: 'Everyone tracked, nothing missed. Focus on the celebration, not the spreadsheet.',
     accent: '#8B8670',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F0E8 100%)',
-          border: '1px solid #E8E3DA',
-          padding: 16,
-          minHeight: 220,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        {[
-          ['The Brooks Family', '4 attending'],
-          ['Mia Chen', 'Awaiting reply'],
-          ['Alex & Samir', 'Meal noted'],
-        ].map(([name, status], index) => (
-          <div
-            key={name}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              borderRadius: 16,
-              padding: 14,
-              background: index === 0 ? '#FAFAF7' : '#FFFFFF',
-              boxShadow: '0 18px 40px rgba(44,43,38,0.04)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: index === 1 ? '#d2cdc5' : '#8a837b',
-                  opacity: 0.85,
-                }}
-              />
-              <span style={{ fontSize: 13, color: '#2C2B26', fontWeight: 500 }}>{name}</span>
-            </div>
-            <span style={{ fontSize: 11, color: '#8B8670' }}>{status}</span>
-          </div>
-        ))}
-      </div>
+      <Image
+        src="/images/guestlist-frame.png"
+        alt="Guest list feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
 ]
@@ -212,8 +69,8 @@ const FEATURE_CARDS = [
 const FLOW_STEPS = [
   {
     eyebrow: '01',
-    title: 'Style your website',
-    body: 'Start with a page that feels considered and easy to share. Your guests see something beautiful, and you stay in control of every detail.',
+    title: 'Create your event page',
+    body: "Create a personalised event page that feels as considered as the occasion itself. Your guests see something beautiful, and you stay in control of every detail.",
     accent: '#8B8670',
     visual: (
       <div
@@ -250,8 +107,8 @@ const FLOW_STEPS = [
   },
   {
     eyebrow: '02',
-    title: 'Share it with ease',
-    body: 'Invite guests into one simple experience where they can RSVP, check the details, and feel looked after from the moment they open the link.',
+    title: 'Invite your guests',
+    body: 'Send a personalised invite to your entire guest list at once. From the moment they open it, everything they need is right there - event details, RSVP, and gift registry.',
     accent: '#6B7A5E',
     visual: (
       <div
@@ -314,7 +171,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '03',
     title: 'Receive what matters',
-    body: 'When guests want to give, the experience feels warm and intentional. Contributions go toward the things you actually care about.',
+    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that actually matters to you.",
     accent: '#B5A98A',
     visual: (
       <div
@@ -373,14 +230,14 @@ const REVIEWS = [
 const FAQS = [
   {
     question: 'What can I create with Joyabl?',
-    answer: 'A beautiful event website, a thoughtful registry, RSVP collection, and a guest list that stays organised from start to finish.',
+    answer: 'A beautiful event website, a thoughtful registry, effortless RSVP management, and a guest list that stays organised from start to finish.',
   },
   {
-    question: 'Do I need to choose an event type on the homepage?',
-    answer: 'No. You can start with the overall experience first, then choose the celebration that fits best once you begin.',
+    question: 'What types of events can I use Joyabl for?',
+    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it's worth celebrating, Joyabl works for it.",
   },
   {
-    question: 'Can I use Joyabl before I am ready to publish?',
+    question: "Can I build my page before I'm ready to publish?",
     answer: 'Yes. You can start building your page and shaping the experience before you decide to go live.',
   },
 ]
@@ -470,10 +327,10 @@ function FlowSection() {
             className="mb-5"
             style={{ fontSize: 'clamp(32px, 4vw, 48px)', lineHeight: 1.02, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500 }}
           >
-            Build the feeling first, then let the details follow.
+            Less admin. More anticipation.
           </h2>
           <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 620 }}>
-            Joyabl is designed to make the practical parts of planning feel as good as the celebration itself.
+            Joyabl takes care of the practical parts so you can stay in the moment that matters.
           </p>
         </div>
 
@@ -579,16 +436,15 @@ export function LandingSections() {
         <div className="max-w-6xl mx-auto px-6 py-24 lg:py-28">
           <div className="max-w-2xl mb-14">
             <p className="text-[11px] uppercase tracking-[0.24em] mb-5" style={{ color: '#8B8670' }}>
-              Everything in one place
             </p>
             <h2
               className="mb-5"
               style={{ fontSize: 'clamp(32px, 4.3vw, 50px)', lineHeight: 1.02, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500 }}
             >
-              A thoughtful way to host beautifully.
+              Everything your guests need - all in one place.
             </h2>
             <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 640 }}>
-              The pieces work together so your website, registry, RSVPs, and guest list feel like one calm, considered experience.
+              Your personalised event page, your guests, your registry. One link.
             </p>
           </div>
 
@@ -628,18 +484,18 @@ export function LandingSections() {
                 Start with the vision, then go live when you are ready.
               </h2>
               <p className="text-base leading-7" style={{ color: 'rgba(250,250,247,0.78)', margin: 0 }}>
-                Create your page, shape your registry, and organise your guests before you publish. Joyabl keeps the experience simple and polished from beginning to launch.
+                Create your page, shape your registry, and organise your guests - take all the time you need. When everything feels right, you're ready to publish.
               </p>
             </div>
 
             <div className="rounded-[30px] p-7 md:p-8" style={{ background: '#FFFFFF', boxShadow: '0 30px 60px rgba(44,43,38,0.18)' }}>
               <div className="flex items-end justify-between gap-6 pb-6 mb-6" style={{ borderBottom: '1px solid #E8E3DA' }}>
                 <div>
-                  <p style={{ margin: '0 0 8px', fontSize: 13, color: '#8B8670' }}>One-time publish fee</p>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, color: '#8B8670' }}>One-time publishing fee</p>
                   <p style={{ margin: 0, fontSize: 'clamp(52px, 8vw, 76px)', lineHeight: 0.92, letterSpacing: '-0.06em', color: '#2C2B26', fontWeight: 500 }}>$49</p>
                 </div>
                 <p style={{ margin: 0, fontSize: 14, color: '#6B6255', maxWidth: 180 }}>
-                  Then 4.98% applies to contributions only.
+                  A 4.98% card transaction fee applies to contributions.
                 </p>
               </div>
 
@@ -675,7 +531,7 @@ export function LandingSections() {
                 Social proof
               </p>
               <h2 style={{ fontSize: 'clamp(30px, 4vw, 46px)', lineHeight: 1.04, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500, margin: '0 0 14px' }}>
-                Made for celebrations that care about the details.
+                For celebrations where the details matter.
               </h2>
               <p className="text-base leading-7" style={{ color: '#6B6255', margin: 0 }}>
                 Joyabl is chosen by hosts who want something that feels warm, modern, and easy to share.
