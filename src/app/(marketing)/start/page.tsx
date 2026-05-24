@@ -7,32 +7,38 @@ const EVENT_TYPES = [
   {
     label: 'Wedding',
     description: 'Your big day, beautifully organised',
-    href: '/wedding',
+    href: '/signup?eventType=wedding',
     accent: '#D4CCBC',
   },
   {
     label: 'Baby Shower',
     description: 'Welcoming your little one',
-    href: '/baby-shower',
+    href: '/signup?eventType=baby_shower',
     accent: '#C8D4C4',
   },
   {
     label: 'Bar / Bat Mitzvah',
     description: 'Celebrating this milestone',
-    href: '/mitzvah',
+    href: '/signup?eventType=mitzvah',
     accent: '#D8D4C8',
   },
   {
     label: 'Housewarming',
     description: 'Making a house a home',
-    href: '/housewarming',
+    href: '/signup?eventType=housewarming',
     accent: '#D4C8BC',
   },
   {
     label: 'Birthday',
     description: 'Another trip around the sun',
-    href: '/birthday',
+    href: '/signup?eventType=birthday',
     accent: '#D0CCBC',
+  },
+  {
+    label: 'Other',
+    description: 'Something uniquely yours',
+    href: '/signup?eventType=other',
+    accent: '#D7D3C7',
   },
 ]
 

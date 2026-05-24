@@ -6,5 +6,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  return <ToastProvider>{children}</ToastProvider>
+
+  return (
+    <ToastProvider>
+      {children}
+    </ToastProvider>
+  )
 }

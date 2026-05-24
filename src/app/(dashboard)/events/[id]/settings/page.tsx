@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardPage, DashboardPageHeader, DashboardSectionLabel } from '@/components/dashboard/page-layout'
 import { DashboardCard } from '@/components/dashboard/surface'
+import { PublishButton } from '@/components/dashboard/publish-button'
 import { guardEvent } from '@/lib/event-guard'
 import type { Event, EventType } from '@/types'
 import { EVENT_TYPE_LABELS } from '@/types'
-import { Trash2 } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Radio, Trash2 } from 'lucide-react'
 
 type GoogleAutocomplete = {
   getPlace: () => { formatted_address?: string; name?: string } | undefined
@@ -52,9 +53,41 @@ const inputStyle = { borderColor: '#E8E3D9', background: '#FAFAF7', color: '#2C2
 const labelStyle: React.CSSProperties = { color: '#8B8670' }
 const cardStyle: React.CSSProperties = { background: 'white', borderColor: '#E8E3D9' }
 
+function isEventType(value: unknown): value is EventType {
+  return typeof value === 'string' && value in EVENT_TYPE_LABELS
+}
+
+function normalizeEventRecord(raw: Record<string, unknown>, eventId: string, userId: string): Event {
+  return {
+    id: typeof raw.id === 'string' ? raw.id : eventId,
+    user_id: typeof raw.user_id === 'string' ? raw.user_id : userId,
+    type: isEventType(raw.type) ? raw.type : 'other',
+    title: typeof raw.title === 'string' ? raw.title : '',
+    slug: typeof raw.slug === 'string' ? raw.slug : '',
+    date: typeof raw.date === 'string' ? raw.date : null,
+    location: typeof raw.location === 'string' ? raw.location : null,
+    description: typeof raw.description === 'string' ? raw.description : null,
+    cover_image_url: typeof raw.cover_image_url === 'string' ? raw.cover_image_url : null,
+    primary_color: typeof raw.primary_color === 'string' ? raw.primary_color : '#2C2B26',
+    accent_color: typeof raw.accent_color === 'string' ? raw.accent_color : '#B5A98A',
+    status: raw.status === 'published' ? 'published' : 'draft',
+    publish_fee_status:
+      raw.publish_fee_status === 'paid' || raw.publish_fee_status === 'pending' || raw.publish_fee_status === 'unpaid'
+        ? raw.publish_fee_status
+        : 'unpaid',
+    publish_fee_paid_at: typeof raw.publish_fee_paid_at === 'string' ? raw.publish_fee_paid_at : null,
+    publish_fee_checkout_session_id:
+      typeof raw.publish_fee_checkout_session_id === 'string' ? raw.publish_fee_checkout_session_id : null,
+    published_at: typeof raw.published_at === 'string' ? raw.published_at : null,
+    content: raw.content && typeof raw.content === 'object' ? (raw.content as Event['content']) : null,
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : new Date().toISOString(),
+  }
+}
+
 export default function SettingsPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [event, setEvent] = useState<Event | null>(null)
@@ -103,33 +136,71 @@ export default function SettingsPage() {
     }
   }, [autoSave])
 
+  const loadEvent = useCallback(async (): Promise<Event | null> => {
+    const userId = await guardEvent(id)
+    if (!userId) {
+      return null
+    }
+
+    const { data } = await supabase.from('events').select('*').eq('id', id).single()
+    if (!data) {
+      return null
+    }
+
+    const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>, id, userId)
+    setEvent(normalizedEvent)
+    setTitle(normalizedEvent.title)
+    const dt = normalizedEvent.date ?? ''
+    if (dt.includes('T')) {
+      setDate(dt.split('T')[0])
+      setTime(dt.split('T')[1]?.slice(0, 5) ?? '')
+    } else {
+      setDate(dt)
+      setTime('')
+    }
+    setLocation(normalizedEvent.location ?? '')
+    const content = normalizedEvent.content as Record<string, unknown> | null
+    setTimezone((content?.timezone as string) ?? 'Australia/Sydney')
+    setHostName((content?.host_name as string) ?? '')
+    setSlug(normalizedEvent.slug)
+    return normalizedEvent
+  }, [id, supabase])
+
   // Load event
   useEffect(() => {
-    async function load() {
-      const userId = await guardEvent(id)
-      if (!userId) {
-        return
-      }
-      const { data } = await supabase.from('events').select('*').eq('id', id).single()
-      if (data) {
-        setEvent(data)
-        setTitle(data.title ?? '')
-        const dt = data.date ?? ''
-        if (dt.includes('T')) {
-          setDate(dt.split('T')[0])
-          setTime(dt.split('T')[1]?.slice(0, 5) ?? '')
-        } else {
-          setDate(dt)
+    const timer = setTimeout(() => {
+      void loadEvent()
+    }, 0)
+
+    return () => clearTimeout(timer)
+  }, [loadEvent])
+
+  useEffect(() => {
+    if (searchParams.get('publish') !== 'ready' || event?.publish_fee_status !== 'pending') {
+      return
+    }
+
+    let cancelled = false
+    let attempts = 0
+
+    async function pollPublishStatus() {
+      while (!cancelled && attempts < 6) {
+        attempts += 1
+        await new Promise(resolve => setTimeout(resolve, attempts === 1 ? 1200 : 1800))
+        const refreshedEvent = await loadEvent()
+        if (cancelled) return
+        if (refreshedEvent?.publish_fee_status === 'paid') {
+          return
         }
-        setLocation(data.location ?? '')
-        const content = data.content as Record<string, unknown> | null
-        setTimezone((content?.timezone as string) ?? 'Australia/Sydney')
-        setHostName((content?.host_name as string) ?? '')
-        setSlug(data.slug ?? '')
       }
     }
-    load()
-  }, [id, supabase])
+
+    void pollPublishStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [event?.publish_fee_status, loadEvent, searchParams])
 
   // Load Google Maps script
   useEffect(() => {
@@ -161,7 +232,7 @@ export default function SettingsPage() {
   }
 
   // Slug availability check (debounced)
-  const checkSlug = useCallback((value: string) => {
+  function checkSlug(value: string) {
     if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current)
     if (!value || value === event?.slug) {
       setSlugStatus('idle')
@@ -173,7 +244,7 @@ export default function SettingsPage() {
       const json = await res.json()
       setSlugStatus(json.available ? 'available' : 'taken')
     }, 500)
-  }, [event?.slug, id])
+  }
 
   async function handleSlugBlur() {
     if (!slug || slug === event?.slug) return
@@ -185,11 +256,10 @@ export default function SettingsPage() {
     flashSaved('slug')
   }
 
-  async function handleStatusToggle() {
+  async function handleStatusToggle(targetStatus: 'draft' | 'published') {
     if (!event) return
-    const newStatus = event.status === 'published' ? 'draft' : 'published'
-    await autoSave({ status: newStatus })
-    setEvent(prev => prev ? { ...prev, status: newStatus } : prev)
+    await autoSave({ status: targetStatus, published_at: targetStatus === 'published' ? new Date().toISOString() : event.published_at })
+    setEvent(prev => prev ? { ...prev, status: targetStatus } : prev)
     flashSaved('status')
   }
 
@@ -199,6 +269,7 @@ export default function SettingsPage() {
   }
 
   const slugValid = /^[a-z0-9-]{3,}$/.test(slug)
+  const shareUrl = event?.slug ? `joyabl.com/e/${event.slug}` : ''
 
   if (!event) return <p className="text-sm px-8 py-8" style={{ color: '#B5A98A' }}>Loading…</p>
 
@@ -235,7 +306,7 @@ export default function SettingsPage() {
             className="inline-block px-3 py-1 rounded-full text-xs font-medium"
             style={{ background: '#F5F0E8', color: '#8B8670', border: '1px solid #E8E3D9' }}
           >
-            {EVENT_TYPE_LABELS[event.type as EventType]}
+            {EVENT_TYPE_LABELS[event.type] ?? 'Other'}
           </span>
         </div>
 
@@ -384,27 +455,99 @@ export default function SettingsPage() {
       {/* Publish / Draft toggle */}
       <DashboardSectionLabel className="mt-6">Visibility</DashboardSectionLabel>
       <DashboardCard className="p-6 mb-4" style={cardStyle as never}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>
-              {event.status === 'published' ? 'Live' : 'Draft'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: '#8B8670' }}>
-              {event.status === 'published'
-                ? 'Your event page is visible to guests.'
-                : 'Your event is not visible to guests yet.'}
-            </p>
+        <div className="rounded-2xl border p-4 mb-4" style={{ borderColor: event.status === 'published' ? '#BBF7D0' : '#E8E3D9', background: event.status === 'published' ? '#F0FDF4' : '#FAFAF7' }}>
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full"
+              style={{ background: event.status === 'published' ? '#DCFCE7' : '#F5F0E8', color: event.status === 'published' ? '#15803D' : '#8B8670' }}
+            >
+              {event.status === 'published' ? <Radio size={18} /> : <EyeOff size={18} />}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <p className="text-sm font-medium" style={{ color: '#2C2B26' }}>
+                  {event.status === 'published' ? 'Live to guests' : 'Hidden from guests'}
+                </p>
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium"
+                  style={{
+                    background: event.status === 'published' ? '#DCFCE7' : '#F5F0E8',
+                    color: event.status === 'published' ? '#15803D' : '#8B8670',
+                  }}
+                >
+                  {event.status === 'published' ? <CheckCircle2 size={11} /> : <EyeOff size={11} />}
+                  {event.status === 'published' ? 'Published' : 'Draft'}
+                </span>
+              </div>
+              <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
+                {event.status === 'published'
+                  ? 'Guests can open your event page right now using the link below.'
+                  : 'Guests cannot view this event yet. Keep it in draft while you are still editing.'}
+              </p>
+              {shareUrl && (
+                <div className="mt-3 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: '#E8E3D9', background: '#FFFFFF', color: '#2C2B26' }}>
+                  {shareUrl}
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
           <button
-            onClick={handleStatusToggle}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            style={event.status === 'published'
-              ? { background: '#F5F0E8', color: '#8B8670', border: '1px solid #E8E3D9' }
-              : { background: '#2C2B26', color: 'white' }
-            }
+            onClick={() => event.status === 'published' && handleStatusToggle('draft')}
+            className="rounded-2xl border p-4 text-left transition-colors"
+            style={{
+              borderColor: event.status === 'draft' ? '#2C2B26' : '#E8E3D9',
+              background: event.status === 'draft' ? '#FAFAF7' : '#FFFFFF',
+            }}
           >
-            {event.status === 'published' ? 'Draft (take offline)' : 'Make live'}
+            <div className="flex items-start gap-3">
+              <div
+                className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: '#F5F0E8', color: '#8B8670' }}
+              >
+                <EyeOff size={15} />
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Keep in draft</p>
+                <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                  Use this while you are still changing details or do not want guests to visit the page yet.
+                </p>
+              </div>
+            </div>
           </button>
+
+          {event.status === 'draft' ? (
+            <PublishButton
+              eventId={id}
+              eventTitle={event.title}
+              publishFeeStatus={event.publish_fee_status}
+              isPublished={false}
+              onRefreshStatus={loadEvent}
+              variant="card"
+            />
+          ) : (
+            <div
+              className="rounded-2xl border p-4 text-left"
+              style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ background: '#F0FDF4', color: '#15803D' }}
+                >
+                  <Eye size={15} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: '#2C2B26' }}>Event is live</p>
+                  <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                    Guests can view this event right now using your shareable link.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         {savedField === 'status' && <p className="text-xs mt-3" style={{ color: '#4CAF50' }}>Saved</p>}
       </DashboardCard>

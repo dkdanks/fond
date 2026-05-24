@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { EVENT_TYPE_COLORS, type EventType } from '@/types'
+import type { EventType } from '@/types'
+import { canCreateAnotherUpcomingEvent } from '@/lib/events'
 import { resolveFontFamily } from '@/lib/font-family'
 import { THEMES, type Theme } from '@/lib/themes'
 import {
-  Heart, Sparkles, Star, House, Gift,
+  Heart, Sparkles, Star, House, Gift, Wand2,
   ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react'
 
@@ -17,7 +18,18 @@ const EVENT_TYPES: { type: EventType; label: string; description: string; icon: 
   { type: 'mitzvah', label: 'Bar / Bat Mitzvah', description: 'Mark this milestone', icon: Star },
   { type: 'housewarming', label: 'Housewarming', description: 'Celebrate a new home', icon: House },
   { type: 'birthday', label: 'Birthday', description: 'Another trip around the sun', icon: Gift },
+  { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
+
+function formatDateOnly(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
 
 function slugify_local(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -44,7 +56,7 @@ function getSlugSuggestions(type: EventType, hostName: string, partnerName: stri
 function getEventTitle(type: EventType, hostName: string, partnerName: string): string {
   if (!hostName) return ''
   if (type === 'wedding') {
-    if (partnerName) return `${hostName} & ${partnerName}`
+    if (partnerName) return `${hostName} and ${partnerName}'s Wedding`
     return `${hostName}'s Wedding`
   }
   const labels: Record<EventType, string> = {
@@ -53,6 +65,7 @@ function getEventTitle(type: EventType, hostName: string, partnerName: string): 
     mitzvah: 'Bar Mitzvah',
     housewarming: 'Housewarming',
     birthday: 'Birthday',
+    other: 'Celebration',
   }
   return `${hostName}'s ${labels[type]}`
 }
@@ -60,9 +73,10 @@ function getEventTitle(type: EventType, hostName: string, partnerName: string): 
 // Simple calendar component
 function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d: string) => void }) {
   const today = new Date()
+  const selectedDate = selected ? parseDateOnly(selected) : null
   const [viewing, setViewing] = useState({
-    year: selected ? new Date(selected).getFullYear() : today.getFullYear(),
-    month: selected ? new Date(selected).getMonth() : today.getMonth(),
+    year: selectedDate?.getFullYear() ?? today.getFullYear(),
+    month: selectedDate?.getMonth() ?? today.getMonth(),
   })
 
   const firstDay = new Date(viewing.year, viewing.month, 1).getDay()
@@ -78,17 +92,14 @@ function CalendarPicker({ selected, onChange }: { selected: string; onChange: (d
   }
 
   function selectDay(day: number) {
-    const d = new Date(viewing.year, viewing.month, day)
-    const str = d.toISOString().split('T')[0]
-    onChange(str)
+    onChange(formatDateOnly(viewing.year, viewing.month, day))
   }
 
-  const selectedDay = selected ? new Date(selected) : null
   const isSelected = (day: number) => {
-    if (!selectedDay) return false
-    return selectedDay.getFullYear() === viewing.year &&
-      selectedDay.getMonth() === viewing.month &&
-      selectedDay.getDate() === day
+    if (!selectedDate) return false
+    return selectedDate.getFullYear() === viewing.year &&
+      selectedDate.getMonth() === viewing.month &&
+      selectedDate.getDate() === day
   }
 
   const isPast = (day: number) => {
@@ -175,11 +186,28 @@ export default function NewEventPage() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [creating, setCreating] = useState(false)
+  const [canCreateEvent, setCanCreateEvent] = useState(true)
+  const [limitMessage, setLimitMessage] = useState('')
 
   // Step 5
   const [selectedTheme, setSelectedTheme] = useState<Theme>(THEMES[0])
 
   const title = getEventTitle(type, hostName, partnerName)
+
+  useEffect(() => {
+    async function loadLimit() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: events } = await supabase
+        .from('events')
+        .select('date')
+        .eq('user_id', user.id)
+      setCanCreateEvent(canCreateAnotherUpcomingEvent(events ?? []))
+    }
+
+    void loadLimit()
+  }, [])
 
   // Generate suggestions when entering step 4
   useEffect(() => {
@@ -224,13 +252,17 @@ export default function NewEventPage() {
 
   async function handleCreate() {
     if (slugStatus !== 'available') return
+    if (!canCreateEvent) {
+      setLimitMessage('You can only have 3 upcoming events at the same time.')
+      return
+    }
     setCreating(true)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const defaultContent = getDefaultContent(type, hostName, partnerName)
+    const defaultContent = getDefaultContent(type, hostName)
     const contentWithTheme = {
       ...defaultContent,
       _theme: selectedTheme.id,
@@ -260,6 +292,9 @@ export default function NewEventPage() {
       .single()
 
     if (error || !event) {
+      setLimitMessage(error?.message?.includes('3 upcoming events')
+        ? 'You can only have 3 upcoming events at the same time.'
+        : '')
       setCreating(false)
       return
     }
@@ -271,6 +306,7 @@ export default function NewEventPage() {
       mitzvah: 'Celebration Fund',
       housewarming: 'Home Sweet Home Fund',
       birthday: 'Birthday Fund',
+      other: 'Celebration Fund',
     }
     await supabase.from('registry_pools').insert({
       event_id: event.id,
@@ -332,6 +368,11 @@ export default function NewEventPage() {
         }}
       >
         <div className="w-full max-w-lg">
+          {!canCreateEvent && (
+            <div className="mb-8 rounded-2xl border px-4 py-3" style={{ borderColor: '#E8E3D9', background: '#FAFAF7', color: '#8B8670' }}>
+              You already have 3 upcoming events. Mark one as complete by letting its date pass before creating another.
+            </div>
+          )}
 
           {/* STEP 1: Event type */}
           {step === 1 && (
@@ -340,7 +381,7 @@ export default function NewEventPage() {
                 What are you celebrating?
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                Choose and we'll set everything up for you.
+                Choose and we&apos;ll set everything up for you.
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-10">
@@ -493,7 +534,7 @@ export default function NewEventPage() {
                     style={{ transform: dateUndecided ? 'translateX(21px)' : 'translateX(2px)' }}
                   />
                 </div>
-                <span className="text-sm" style={{ color: '#2C2B26' }}>We haven't decided yet</span>
+                <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&apos;t decided yet</span>
               </label>
 
               {/* Location */}
@@ -532,7 +573,7 @@ export default function NewEventPage() {
                 Choose your URL.
               </h1>
               <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-                This is the link you'll share with your guests.
+                This is the link you&apos;ll share with your guests.
               </p>
 
               {/* URL input */}
@@ -666,13 +707,16 @@ export default function NewEventPage() {
                 <button onClick={goBack} className="px-5 py-3 rounded-xl text-sm transition-colors" style={{ color: '#8B8670' }}>Back</button>
                 <button
                   onClick={handleCreate}
-                  disabled={!step5Valid || creating}
+                  disabled={!step5Valid || creating || !canCreateEvent}
                   className="px-7 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
                   style={{ background: step5Valid ? '#2C2B26' : '#E8E3D9', color: step5Valid ? 'white' : '#B5A98A' }}
                 >
                   {creating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : 'Create your page'}
                 </button>
               </div>
+              {limitMessage && (
+                <p className="mt-3 text-sm" style={{ color: '#8B8670' }}>{limitMessage}</p>
+              )}
             </div>
           )}
         </div>
@@ -682,7 +726,7 @@ export default function NewEventPage() {
 }
 
 // Generate sensible default content for the event
-function getDefaultContent(type: EventType, hostName: string, partnerName: string) {
+function getDefaultContent(type: EventType, hostName: string) {
   if (type === 'wedding') {
     return {
       welcome: {
@@ -802,6 +846,31 @@ function getDefaultContent(type: EventType, hostName: string, partnerName: strin
       faq: [
         { id: '1', question: "What's the dress code?", answer: "Smart / semi-formal. Please no white." },
         { id: '2', question: "Is there parking?", answer: "Yes, parking is available nearby." },
+      ],
+    }
+  }
+
+  if (type === 'other') {
+    return {
+      welcome: {
+        greeting: `We are so excited to celebrate this moment with the people who matter most. Thank you for being part of it.`,
+        show_rsvp: true,
+      },
+      our_story: {
+        introduction: `${hostName || 'We'} wanted one place to share the details and bring everyone together.`,
+        story: `We cannot wait to celebrate with you. You can use this page to share the plan, collect RSVPs, and point guests to anything they might need before the day.`,
+        images: [],
+      },
+      schedule: [
+        { id: '1', title: 'Guests arrive', time: '5:00 PM', venue: '', address: '', notes: '' },
+        { id: '2', title: 'Celebration begins', time: '6:00 PM', venue: '', address: '', notes: '' },
+      ],
+      registry: {
+        note: `If you'd like to contribute, we've added a few thoughtful options here. No pressure at all.`,
+      },
+      faq: [
+        { id: '1', question: 'What should I wear?', answer: 'Dress in whatever feels right for the occasion. You can update this to match your event.' },
+        { id: '2', question: 'Do I need to bring anything?', answer: 'Just yourself. Add any extra notes here if guests should know more.' },
       ],
     }
   }

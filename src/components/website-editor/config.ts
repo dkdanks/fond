@@ -44,6 +44,7 @@ export const SECTIONS_BY_TYPE: Record<EventType, SectionKey[]> = {
   birthday: ['welcome', 'schedule', 'registry', 'faq'],
   mitzvah: ['welcome', 'story', 'schedule', 'attire', 'travel', 'registry', 'faq'],
   housewarming: ['welcome', 'schedule', 'registry', 'faq'],
+  other: ['welcome', 'story', 'schedule', 'registry', 'faq'],
 }
 
 export const SECTION_LABELS: Record<SectionKey, string> = {

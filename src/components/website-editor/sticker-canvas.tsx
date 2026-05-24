@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Trash2 } from 'lucide-react'
 import { ColorPickerPopover } from '@/components/ui/color-picker-popover'
+import { applyStickerPlacementPatch, resolveStickerPlacement, type StickerViewport } from '@/lib/stickers'
 import type { PlacedSticker } from '@/types'
 import { StickerImage } from './sticker-image'
 
@@ -10,15 +11,17 @@ interface Props {
   stickers: PlacedSticker[]
   onChange: (stickers: PlacedSticker[]) => void
   primaryColor: string
+  viewport: StickerViewport
+  selectedId?: string | null
+  onSelect?: (id: string | null) => void
+  onBeginChange?: (stickers: PlacedSticker[]) => void
 }
 
-type Handle = 'nw' | 'ne' | 'se' | 'sw' | 'rotate'
 type Corner = 'nw' | 'ne' | 'se' | 'sw'
 
 interface DragState {
   type: 'move' | 'resize' | 'rotate'
   stickerId: string
-  handle?: Handle
   startX: number
   startY: number
   startStickerX: number
@@ -83,6 +86,19 @@ function getCornerHotspotPosition(corner: Corner): React.CSSProperties {
   }
 }
 
+function getRotateHotspotPosition(corner: Corner): React.CSSProperties {
+  switch (corner) {
+    case 'nw':
+      return { left: -26, top: -26 }
+    case 'ne':
+      return { right: -26, top: -26 }
+    case 'se':
+      return { right: -26, bottom: -26 }
+    case 'sw':
+      return { left: -26, bottom: -26 }
+  }
+}
+
 function getResizeCursor(stickerRotation: number, corner: Corner) {
   const base = corner === 'nw' || corner === 'se' ? 0 : 90
   const fallback = corner === 'nw' || corner === 'se' ? 'nwse-resize' : 'nesw-resize'
@@ -108,148 +124,184 @@ function getDimensionBadgePosition(rotation: number): React.CSSProperties {
   return { right: -34, top: '50%', transform: 'translateY(-50%)' }
 }
 
-export function StickerCanvas({ stickers, onChange }: Props) {
+export function StickerCanvas({
+  stickers,
+  onChange,
+  viewport,
+  selectedId = null,
+  onSelect,
+  onBeginChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
   const SNAP_THRESHOLD = 0.8
 
-  // Keep ref in sync for event handlers
-  useEffect(() => { dragRef.current = drag }, [drag])
-
-  // Deselect on Escape
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setSelectedId(null)
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        // Only delete if not in an input
-        if (document.activeElement?.tagName === 'INPUT') return
-        onChange(stickers.filter(s => s.id !== selectedId))
-        setSelectedId(null)
-      }
+    dragRef.current = drag
+  }, [drag])
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onSelect?.(null)
     }
+
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [selectedId, stickers, onChange])
+  }, [onSelect])
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
       const target = event.target as HTMLElement | null
       if (target?.closest('[data-sticker-ui="true"]')) return
-      setSelectedId(null)
+      onSelect?.(null)
     }
 
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [])
+  }, [onSelect])
 
-  // Stable ref that always holds the latest move handler — avoids re-registering on every render
-  const moveHandlerRef = useRef<(e: PointerEvent) => void>(() => {})
+  const moveHandlerRef = useRef<(event: PointerEvent) => void>(() => {})
 
   useEffect(() => {
-    moveHandlerRef.current = (e: PointerEvent) => {
-      const d = dragRef.current
-      if (!d || !containerRef.current) return
-      const dx = ((e.clientX - d.startX) / d.containerW) * 100
-      const dy = ((e.clientY - d.startY) / d.containerH) * 100
+    moveHandlerRef.current = (event: PointerEvent) => {
+      const currentDrag = dragRef.current
+      if (!currentDrag || !containerRef.current) return
+      const dx = ((event.clientX - currentDrag.startX) / currentDrag.containerW) * 100
+      const dy = ((event.clientY - currentDrag.startY) / currentDrag.containerH) * 100
+
       onChange(
-        stickers.map(s => {
-          if (s.id !== d.stickerId) return s
-          if (d.type === 'move') {
-            const overflowAllowance = s.width / 2
-            let nextX = clamp(d.startStickerX + dx, -overflowAllowance, 100 + overflowAllowance)
-            const nextY = clamp(d.startStickerY + dy, -overflowAllowance, 100 + overflowAllowance)
+        stickers.map(sticker => {
+          if (sticker.id !== currentDrag.stickerId) return sticker
+          const placement = resolveStickerPlacement(sticker, viewport)
+
+          if (currentDrag.type === 'move') {
+            const overflowAllowance = placement.width / 2
+            let nextX = clamp(currentDrag.startStickerX + dx, -overflowAllowance, 100 + overflowAllowance)
+            const nextY = clamp(currentDrag.startStickerY + dy, -overflowAllowance, 100 + overflowAllowance)
 
             if (Math.abs(nextX - 50) <= SNAP_THRESHOLD) nextX = 50
-            return { ...s, x: nextX, y: nextY }
+            return applyStickerPlacementPatch(sticker, viewport, { x: nextX, y: nextY })
           }
-          if (d.type === 'resize') {
-            const rect = containerRef.current!.getBoundingClientRect()
-            const cx = rect.left + (d.startStickerX / 100) * rect.width
-            const cy = rect.top + (d.startStickerY / 100) * rect.height
-            const distance = Math.max(12, Math.hypot(e.clientX - cx, e.clientY - cy))
-            const scale = distance / Math.max(d.startPointerDistance, 12)
-            return { ...s, width: Math.max(4, Math.min(80, d.startWidth * scale)) }
+
+          if (currentDrag.type === 'resize') {
+            const container = containerRef.current
+            if (!container) return sticker
+            const rect = container.getBoundingClientRect()
+            const cx = rect.left + (currentDrag.startStickerX / 100) * rect.width
+            const cy = rect.top + (currentDrag.startStickerY / 100) * rect.height
+            const distance = Math.max(12, Math.hypot(event.clientX - cx, event.clientY - cy))
+            const scale = distance / Math.max(currentDrag.startPointerDistance, 12)
+            return applyStickerPlacementPatch(sticker, viewport, {
+              width: Math.max(4, Math.min(80, currentDrag.startWidth * scale)),
+            })
           }
-          if (d.type === 'rotate') {
-            const rect = containerRef.current!.getBoundingClientRect()
-            const cx = rect.left + (d.startStickerX / 100) * rect.width
-            const cy = rect.top + (d.startStickerY / 100) * rect.height
-            const currentAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI)
-            return { ...s, rotation: d.startRotation + (currentAngle - d.startPointerAngle) }
+
+          if (currentDrag.type === 'rotate') {
+            const container = containerRef.current
+            if (!container) return sticker
+            const rect = container.getBoundingClientRect()
+            const cx = rect.left + (currentDrag.startStickerX / 100) * rect.width
+            const cy = rect.top + (currentDrag.startStickerY / 100) * rect.height
+            const currentAngle = Math.atan2(event.clientY - cy, event.clientX - cx) * (180 / Math.PI)
+            return applyStickerPlacementPatch(sticker, viewport, {
+              rotation: currentDrag.startRotation + (currentAngle - currentDrag.startPointerAngle),
+            })
           }
-          return s
+
+          return sticker
         })
       )
     }
-  }, [stickers, onChange])
+  }, [onChange, stickers, viewport])
+
+  function beginChange() {
+    onBeginChange?.(stickers)
+  }
 
   function startDrag(
-    e: React.PointerEvent,
+    event: React.PointerEvent,
     stickerId: string,
     type: DragState['type'],
-    handle?: Handle
   ) {
-    e.stopPropagation()
-    e.preventDefault()
-    const sticker = stickers.find(s => s.id === stickerId)
+    event.stopPropagation()
+    event.preventDefault()
+    const sticker = stickers.find(item => item.id === stickerId)
     if (!sticker || !containerRef.current) return
+
+    beginChange()
+    onSelect?.(stickerId)
+
+    const placement = resolveStickerPlacement(sticker, viewport)
     const rect = containerRef.current.getBoundingClientRect()
-    const centerX = rect.left + (sticker.x / 100) * rect.width
-    const centerY = rect.top + (sticker.y / 100) * rect.height
+    const centerX = rect.left + (placement.x / 100) * rect.width
+    const centerY = rect.top + (placement.y / 100) * rect.height
     const state: DragState = {
       type,
       stickerId,
-      handle,
-      startX: e.clientX,
-      startY: e.clientY,
-      startStickerX: sticker.x,
-      startStickerY: sticker.y,
-      startWidth: sticker.width,
-      startRotation: sticker.rotation,
-      startPointerAngle: Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI),
-      startPointerDistance: Math.hypot(e.clientX - centerX, e.clientY - centerY),
+      startX: event.clientX,
+      startY: event.clientY,
+      startStickerX: placement.x,
+      startStickerY: placement.y,
+      startWidth: placement.width,
+      startRotation: placement.rotation,
+      startPointerAngle: Math.atan2(event.clientY - centerY, event.clientX - centerX) * (180 / Math.PI),
+      startPointerDistance: Math.hypot(event.clientX - centerX, event.clientY - centerY),
       containerW: rect.width,
       containerH: rect.height,
     }
+
     setDrag(state)
     dragRef.current = state
 
-    // Create per-session stable closures so removeEventListener can find them
-    const move = (ev: PointerEvent) => moveHandlerRef.current(ev)
+    const move = (nextEvent: PointerEvent) => moveHandlerRef.current(nextEvent)
     const up = () => {
       setDrag(null)
       document.removeEventListener('pointermove', move)
       document.removeEventListener('pointerup', up)
     }
+
     document.addEventListener('pointermove', move)
     document.addEventListener('pointerup', up)
   }
 
   function updateSticker(id: string, patch: Partial<PlacedSticker>) {
-    onChange(stickers.map(s => s.id === id ? { ...s, ...patch } : s))
+    beginChange()
+    onChange(stickers.map(sticker => sticker.id === id ? { ...sticker, ...patch } : sticker))
   }
 
   function duplicateSticker(id: string) {
-    const s = stickers.find(s => s.id === id)
-    if (!s) return
-    const newS: PlacedSticker = {
-      ...s,
+    const sticker = stickers.find(item => item.id === id)
+    if (!sticker) return
+    beginChange()
+
+    const desktopPlacement = resolveStickerPlacement(sticker, 'desktop')
+    const mobilePlacement = resolveStickerPlacement(sticker, 'mobile')
+    const nextSticker: PlacedSticker = {
+      ...sticker,
       id: createStickerId(),
-      x: s.x + 3,
-      y: s.y + 3,
+      x: desktopPlacement.x + 3,
+      y: desktopPlacement.y + 3,
+      width: desktopPlacement.width,
+      rotation: desktopPlacement.rotation,
+      mobileX: mobilePlacement.x + 3,
+      mobileY: mobilePlacement.y + 3,
+      mobileWidth: mobilePlacement.width,
+      mobileRotation: mobilePlacement.rotation,
     }
-    onChange([...stickers, newS])
-    setSelectedId(newS.id)
+
+    onChange([...stickers, nextSticker])
+    onSelect?.(nextSticker.id)
   }
 
   const selectedSticker = stickers.find(sticker => sticker.id === selectedId) ?? null
+  const selectedPlacement = selectedSticker ? resolveStickerPlacement(selectedSticker, viewport) : null
   const showVerticalGuide =
     drag?.type === 'move' &&
     drag.stickerId === selectedSticker?.id &&
-    selectedSticker !== null &&
-    selectedSticker.x === 50
+    selectedPlacement !== null &&
+    selectedPlacement.x === 50
+
   return (
     <div
       ref={containerRef}
@@ -277,12 +329,13 @@ export function StickerCanvas({ stickers, onChange }: Props) {
         <StickerItem
           key={sticker.id}
           sticker={sticker}
+          viewport={viewport}
           isSelected={sticker.id === selectedId}
           isDragging={drag?.stickerId === sticker.id}
-          onSelect={() => setSelectedId(sticker.id)}
-          onStartMove={e => { setSelectedId(sticker.id); startDrag(e, sticker.id, 'move') }}
-          onStartResize={e => startDrag(e, sticker.id, 'resize')}
-          onStartRotate={e => startDrag(e, sticker.id, 'rotate')}
+          onSelect={() => onSelect?.(sticker.id)}
+          onStartMove={event => startDrag(event, sticker.id, 'move')}
+          onStartResize={event => startDrag(event, sticker.id, 'resize')}
+          onStartRotate={event => startDrag(event, sticker.id, 'rotate')}
         />
       ))}
 
@@ -299,28 +352,29 @@ export function StickerCanvas({ stickers, onChange }: Props) {
         }}
         onDelete={() => {
           if (!selectedSticker) return
+          beginChange()
           onChange(stickers.filter(sticker => sticker.id !== selectedSticker.id))
-          setSelectedId(null)
+          onSelect?.(null)
         }}
       />
     </div>
   )
 }
 
-// ─── Sticker item ────────────────────────────────────────────────────────────
-
 interface StickerItemProps {
   sticker: PlacedSticker
+  viewport: StickerViewport
   isSelected: boolean
   isDragging: boolean
   onSelect: () => void
-  onStartMove: (e: React.PointerEvent) => void
-  onStartResize: (e: React.PointerEvent) => void
-  onStartRotate: (e: React.PointerEvent) => void
+  onStartMove: (event: React.PointerEvent) => void
+  onStartResize: (event: React.PointerEvent) => void
+  onStartRotate: (event: React.PointerEvent) => void
 }
 
 function StickerItem({
   sticker,
+  viewport,
   isSelected,
   isDragging,
   onSelect,
@@ -328,6 +382,7 @@ function StickerItem({
   onStartResize,
   onStartRotate,
 }: StickerItemProps) {
+  const placement = resolveStickerPlacement(sticker, viewport)
   const corners: Corner[] = ['nw', 'ne', 'se', 'sw']
   const outlineColor = '#111111'
 
@@ -336,17 +391,17 @@ function StickerItem({
       data-sticker-ui="true"
       style={{
         position: 'absolute',
-        left: `${sticker.x}%`,
-        top: `${sticker.y}%`,
-        width: `${sticker.width}%`,
-        transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
+        left: `${placement.x}%`,
+        top: `${placement.y}%`,
+        width: `${placement.width}%`,
+        transform: `translate(-50%, -50%) rotate(${placement.rotation}deg)`,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         pointerEvents: 'auto',
         transition: isDragging ? 'none' : 'filter 150ms ease',
         filter: isSelected ? 'drop-shadow(0 18px 30px rgba(44,43,38,0.18))' : 'none',
       }}
-      onClick={e => { e.stopPropagation(); onSelect() }}
+      onClick={event => { event.stopPropagation(); onSelect() }}
       onPointerDown={onStartMove}
     >
       <StickerImage
@@ -356,7 +411,6 @@ function StickerItem({
         style={{ pointerEvents: 'none', opacity: sticker.opacity, transition: 'opacity 150ms ease' }}
       />
 
-      {/* Handles — only when selected */}
       {isSelected && (
         <>
           <div
@@ -366,12 +420,11 @@ function StickerItem({
               borderRadius: 0,
               border: `1px solid ${outlineColor}`,
               pointerEvents: 'none',
-              boxShadow: 'none',
             }}
           />
 
           {corners.map(corner => (
-            <div key={`resize-${corner}`}>
+            <div key={`${sticker.id}-${corner}`}>
               <div
                 style={{
                   position: 'absolute',
@@ -386,22 +439,22 @@ function StickerItem({
                 }}
               />
               <div
-                onPointerDown={e => { e.stopPropagation(); onStartResize(e) }}
+                onPointerDown={event => { event.stopPropagation(); onStartResize(event) }}
                 style={{
                   position: 'absolute',
                   width: 10,
                   height: 10,
-                  cursor: getResizeCursor(sticker.rotation, corner),
+                  cursor: getResizeCursor(placement.rotation, corner),
                   ...getCornerHotspotPosition(corner),
                 }}
               />
               <div
-                onPointerDown={e => { e.stopPropagation(); onStartRotate(e) }}
+                onPointerDown={event => { event.stopPropagation(); onStartRotate(event) }}
                 style={{
                   position: 'absolute',
                   width: 14,
                   height: 14,
-                  cursor: getRotateCursor(sticker.rotation, corner),
+                  cursor: getRotateCursor(placement.rotation, corner),
                   ...getRotateHotspotPosition(corner),
                 }}
               />
@@ -411,7 +464,7 @@ function StickerItem({
           <div
             style={{
               position: 'absolute',
-              ...getDimensionBadgePosition(sticker.rotation),
+              ...getDimensionBadgePosition(placement.rotation),
               padding: '2px 8px',
               borderRadius: 6,
               background: '#111111',
@@ -423,28 +476,13 @@ function StickerItem({
               pointerEvents: 'none',
             }}
           >
-            {`${Math.round(sticker.width * 10)} x ${Math.round(sticker.width * 10)}`}
+            {`${Math.round(placement.width * 10)} x ${Math.round(placement.width * 10)}`}
           </div>
         </>
       )}
     </div>
   )
 }
-
-function getRotateHotspotPosition(corner: Corner): React.CSSProperties {
-  switch (corner) {
-    case 'nw':
-      return { left: -26, top: -26 }
-    case 'ne':
-      return { right: -26, top: -26 }
-    case 'se':
-      return { right: -26, bottom: -26 }
-    case 'sw':
-      return { left: -26, bottom: -26 }
-  }
-}
-
-// ─── Sticker controls (floating toolbar) ─────────────────────────────────────
 
 interface ControlsProps {
   sticker: PlacedSticker | null
@@ -471,7 +509,7 @@ function StickerControls({ sticker, onUpdate, onDuplicate, onDelete }: ControlsP
       onPointerDown={event => event.stopPropagation()}
     >
       <div
-        className="flex items-center gap-0 rounded-[28px] border overflow-visible"
+        className="flex items-center gap-0 overflow-visible rounded-[28px] border"
         style={{
           background: 'rgba(255,255,255,0.92)',
           borderColor: 'rgba(44,43,38,0.08)',
@@ -486,7 +524,6 @@ function StickerControls({ sticker, onUpdate, onDuplicate, onDelete }: ControlsP
             from { opacity: 0; transform: translateY(18px) scale(0.96); }
             to   { opacity: 1; transform: translateY(0) scale(1); }
           }
-
         `}</style>
 
         <ColorPickerPopover
@@ -507,21 +544,21 @@ function StickerControls({ sticker, onUpdate, onDuplicate, onDelete }: ControlsP
           )}
         />
 
-        <div className="w-px h-6 self-center" style={{ background: '#EFE8DD' }} />
+        <div className="h-6 w-px self-center" style={{ background: '#EFE8DD' }} />
 
         <button
           onClick={onDuplicate}
-          className="flex items-center justify-center w-10 h-10 rounded-full transition-colors hover:bg-[#FAFAF7]"
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-[#FAFAF7]"
           title="Duplicate"
         >
           <Copy size={15} style={{ color: '#8B8670' }} />
         </button>
 
-        <div className="w-px h-6 self-center" style={{ background: '#EFE8DD' }} />
+        <div className="h-6 w-px self-center" style={{ background: '#EFE8DD' }} />
 
         <button
           onClick={onDelete}
-          className="flex items-center justify-center w-10 h-10 rounded-full transition-colors hover:bg-[#FEF2F2]"
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-[#FEF2F2]"
           title="Delete"
         >
           <Trash2 size={15} style={{ color: '#EF4444' }} />

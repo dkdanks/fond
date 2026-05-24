@@ -1,13 +1,13 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { Event, EventContent, PlacedSticker, WeddingPartyMember } from '@/types'
 import { StickerCanvas } from '@/components/website-editor/sticker-canvas'
 import { StickerOverlay } from '@/components/website-editor/sticker-overlay'
 import { resolveFontFamily } from '@/lib/font-family'
 import { customSectionImageAdjustmentKey, getImageFrameStyle, heroImageAdjustmentKey, storyImageAdjustmentKey, weddingPartyImageAdjustmentKey } from '@/lib/image-presentation'
-import { getLegacyPageStickers, getSectionStickers } from '@/lib/stickers'
+import { getLegacyPageStickers, getSectionStickers, type StickerViewport } from '@/lib/stickers'
 import { formatDate } from '@/lib/utils'
 
 type SectionKey = 'welcome' | 'story' | 'schedule' | 'wedding_party' | 'attire' | 'travel' | 'registry' | 'faq'
@@ -18,6 +18,7 @@ const SECTIONS_BY_TYPE: Record<string, SectionKey[]> = {
   birthday: ['welcome', 'schedule', 'registry', 'faq'],
   mitzvah: ['welcome', 'story', 'schedule', 'attire', 'travel', 'registry', 'faq'],
   housewarming: ['welcome', 'schedule', 'registry', 'faq'],
+  other: ['welcome', 'story', 'schedule', 'registry', 'faq'],
 }
 
 const ROLE_LABELS: Record<WeddingPartyMember['role'], string> = {
@@ -76,12 +77,16 @@ interface EventPageProps {
   rsvpHref: string
   registryHref: string
   topPaddingClassName?: string
+  viewport?: StickerViewport
   editor?: {
-    activeStickerSection: string
     onSectionStickersChange: (sectionKey: string, nextStickers: PlacedSticker[]) => void
     onSectionClick: (sectionKey: string) => void
     onSectionSpacingChange?: (sectionKey: string, spacing: number) => void
     sectionLayerRefs: { current: Record<string, HTMLDivElement | null> }
+    viewport: StickerViewport
+    selectedStickerId: string | null
+    onSelectSticker: (stickerId: string | null) => void
+    onBeginStickerChange?: (stickers: PlacedSticker[]) => void
   }
 }
 
@@ -156,8 +161,23 @@ export function EventPage({
   rsvpHref,
   registryHref,
   topPaddingClassName,
+  viewport,
   editor,
 }: EventPageProps) {
+  const [responsiveViewport, setResponsiveViewport] = useState<StickerViewport>('desktop')
+
+  useEffect(() => {
+    if (viewport) return
+
+    function syncViewport() {
+      setResponsiveViewport(window.innerWidth < 768 ? 'mobile' : 'desktop')
+    }
+
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [viewport])
+
   const content: EventContent = event.content ?? {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,8 +217,10 @@ export function EventPage({
   const spacingFor = (sectionKey: string) => Math.max(0, Math.min(240, sectionSpacing[sectionKey] ?? 0))
   const legacyPageStickers = getLegacyPageStickers(placedStickers)
   const isEditable = Boolean(editor)
+  const stickerViewport = editor?.viewport ?? viewport ?? responsiveViewport
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rsvpButtonText = (c.welcome as any)?.rsvp_button_text as string | undefined
+  const welcomeBackgroundColor = c.welcome?.background_color?.trim() || undefined
 
   function renderSection(key: string) {
     if (hiddenSections.has(key)) return null
@@ -444,15 +466,19 @@ export function EventPage({
   ) {
     const spacing = spacingFor(sectionKey)
     const sectionStickers = getSectionStickers(placedStickers, sectionKey)
-    const overlay = editor && editor.activeStickerSection === sectionKey
+    const overlay = editor
       ? (
         <StickerCanvas
           stickers={sectionStickers}
           onChange={next => editor.onSectionStickersChange(sectionKey, next)}
           primaryColor={primaryColor}
+          viewport={editor.viewport}
+          selectedId={editor.selectedStickerId}
+          onSelect={editor.onSelectSticker}
+          onBeginChange={editor.onBeginStickerChange}
         />
       )
-      : <StickerOverlay stickers={sectionStickers} />
+      : <StickerOverlay stickers={sectionStickers} viewport={stickerViewport} />
 
     return (
       <div
@@ -492,8 +518,8 @@ export function EventPage({
           const coverUrl = event.cover_image_url
           const coverStyle = coverUrl ? getImageFrameStyle(coverUrl, imageAdjustments[heroImageAdjustmentKey()]) : undefined
           return renderSectionLayer('welcome', (
-            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? undefined : primaryColor, color: 'white' }}>
-              {coverUrl && <div className="absolute inset-0" style={{ ...coverStyle, backgroundColor: primaryColor }} />}
+            <section className="relative flex min-h-[55vh] flex-col items-center justify-center text-center" style={{ background: coverUrl ? undefined : (welcomeBackgroundColor ?? primaryColor), color: 'white' }}>
+              {coverUrl && <div className="absolute inset-0" style={{ ...coverStyle, backgroundColor: welcomeBackgroundColor ?? primaryColor }} />}
               {coverUrl && <div className="absolute inset-0 bg-black/45" />}
               <div className="relative mx-auto flex w-full max-w-3xl flex-col items-center gap-6 px-6 py-20">
                 <h1 className="text-4xl font-semibold md:text-5xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
@@ -507,8 +533,8 @@ export function EventPage({
         if (heroLayout === 'split') {
           const coverUrl = event.cover_image_url
           return renderSectionLayer('welcome', (
-            <section className="flex min-h-[55vh] flex-col md:flex-row" style={{ background: bgColor }}>
-              <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-16 md:px-10">
+            <section className="flex min-h-[55vh] flex-col md:flex-row" style={{ background: welcomeBackgroundColor ?? bgColor }}>
+              <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-16 md:px-10" style={{ background: welcomeBackgroundColor ?? bgColor }}>
                 <h1 className="text-3xl font-semibold leading-tight md:text-4xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.02em' }}>{event.title}</h1>
                 {metaLine}
                 {c.welcome?.greeting && <p className="text-base leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
@@ -520,7 +546,7 @@ export function EventPage({
         }
         if (heroLayout === 'illustrated') {
           return renderSectionLayer('welcome', (
-            <section className="px-4 py-20 text-center md:px-8 md:py-24" style={{ background: bgColor }}>
+            <section className="px-4 py-20 text-center md:px-8 md:py-24" style={{ background: welcomeBackgroundColor ?? bgColor }}>
               <div className="mb-8 flex items-center justify-center gap-3 opacity-30"><div className="h-px max-w-24 flex-1" style={{ background: primaryColor }} /><div className="h-1.5 w-1.5 rounded-full" style={{ background: primaryColor }} /><div className="h-px max-w-24 flex-1" style={{ background: primaryColor }} /></div>
               <h1 className="mb-4 text-4xl font-semibold md:text-5xl" style={{ fontFamily: `'${displayFont}', serif`, letterSpacing: '-0.01em' }}>{event.title}</h1>
               {metaLine && <div className="mb-4">{metaLine}</div>}
@@ -531,7 +557,7 @@ export function EventPage({
           ), { title: 'Click to edit Welcome' })
         }
         return renderSectionLayer('welcome', (
-          <section className="px-4 py-12 text-center md:px-8 md:py-20" style={{ background: bgColor }}>
+          <section className="px-4 py-12 text-center md:px-8 md:py-20" style={{ background: welcomeBackgroundColor ?? bgColor }}>
             <h1 className="mb-3 text-3xl font-semibold md:text-4xl" style={{ letterSpacing: '-0.02em', fontFamily: `'${displayFont}', serif` }}>{event.title}</h1>
             {metaLine && <div className="mb-8">{metaLine}</div>}
             {c.welcome?.greeting && <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed opacity-80" style={{ fontStyle: 'italic', fontFamily: `'${displayFont}', serif` }}>{c.welcome.greeting}</p>}
@@ -550,7 +576,7 @@ export function EventPage({
         )
       })}
 
-      <StickerOverlay stickers={legacyPageStickers} />
+      <StickerOverlay stickers={legacyPageStickers} viewport={stickerViewport} />
 
       <div className="border-t py-8 text-center" style={{ borderColor: `${primaryColor}10` }}>
         <p className="text-xs opacity-25">Powered by Joyabl</p>

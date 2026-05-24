@@ -1,12 +1,13 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createClient } from '@/lib/supabase/client'
 import { resolveFontFamily } from '@/lib/font-family'
+import { usePublicGuestContext } from '@/lib/public-guest-context'
 import { calculateFee, formatCurrency, type RegistryPool } from '@/types'
 import { ArrowLeft, Check, Heart, Loader2 } from 'lucide-react'
 
@@ -26,12 +27,14 @@ function PaymentForm({
   amountCents,
   primaryColor,
   bgColor,
+  returnUrl,
   onSuccess,
   onError,
 }: {
   amountCents: number
   primaryColor: string
   bgColor: string
+  returnUrl: string
   onSuccess: () => void
   onError: (msg: string) => void
 }) {
@@ -48,7 +51,7 @@ function PaymentForm({
       elements,
       redirect: 'if_required',
       confirmParams: {
-        return_url: `${window.location.origin}${window.location.pathname}?success=1`,
+        return_url: returnUrl,
       },
     })
 
@@ -138,6 +141,7 @@ function FundCard({
 export default function RegistryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const searchParams = useSearchParams()
+  const { name, setName, email, setEmail, withGuestContext } = usePublicGuestContext(slug)
   const [primaryColor, setPrimaryColor] = useState('#2C2B26')
   const [bgColor, setBgColor] = useState('#F5F0E8')
   const [font, setFont] = useState('Inter')
@@ -149,8 +153,6 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   const [selectedFund, setSelectedFund] = useState<SelectedFund>(undefined)
 
   // Details form state
-  const [name, setName] = useState(() => searchParams.get('name') ?? '')
-  const [email, setEmail] = useState(() => searchParams.get('email') ?? '')
   const [amountCents, setAmountCents] = useState(5000)
   const [customAmount, setCustomAmount] = useState('')
   const [message, setMessage] = useState('')
@@ -201,6 +203,10 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
   const effectiveAmount = customAmount ? Math.round(parseFloat(customAmount) * 100) : amountCents
   const fee = calculateFee(effectiveAmount)
   const theyReceive = effectiveAmount - fee
+  const paymentReturnUrl = useMemo(() => {
+    if (typeof window === 'undefined') return withGuestContext(`/e/${slug}/registry?success=1`)
+    return `${window.location.origin}${withGuestContext(`/e/${slug}/registry?success=1`)}`
+  }, [slug, withGuestContext])
 
   async function handleContinueToPayment(e: React.FormEvent) {
     e.preventDefault()
@@ -252,7 +258,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
           <p className="text-sm mb-8 opacity-40" style={{ color: primaryColor }}>Going towards: {selectedFund.title}</p>
         )}
         <Link
-          href={`/e/${slug}`}
+          href={withGuestContext(`/e/${slug}`)}
           className="px-6 py-2.5 rounded-full text-sm font-medium border"
           style={{ borderColor: `${primaryColor}30`, color: primaryColor }}
         >
@@ -294,7 +300,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
           </button>
         ) : (
           <Link
-            href={`/e/${slug}`}
+            href={withGuestContext(`/e/${slug}`)}
             className="flex items-center gap-1.5 text-sm opacity-50 hover:opacity-80 transition-opacity"
             style={{ color: primaryColor }}
           >
@@ -519,6 +525,7 @@ export default function RegistryPage({ params }: { params: Promise<{ slug: strin
               amountCents={effectiveAmount}
               primaryColor={primaryColor}
               bgColor={bgColor}
+              returnUrl={paymentReturnUrl}
               onSuccess={() => setDone(true)}
               onError={(msg) => { setError(msg); setStep('details') }}
             />

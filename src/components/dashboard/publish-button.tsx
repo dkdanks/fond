@@ -1,28 +1,303 @@
 'use client'
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 
-export function PublishButton({ eventId }: { eventId: string }) {
-  const [loading, setLoading] = useState(false)
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ArrowRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
+import { DashboardModal } from '@/components/dashboard/modal'
+import { PUBLISH_EVENT_FEE_CENTS } from '@/lib/publish-pricing'
+import type { PublishFeeStatus } from '@/types'
+
+function formatFee(cents: number) {
+  return `$${(cents / 100).toFixed(0)}`
+}
+
+export function PublishButton({
+  eventId,
+  eventTitle,
+  publishFeeStatus,
+  isPublished,
+  onRefreshStatus,
+  variant = 'button',
+  className,
+}: {
+  eventId: string
+  eventTitle: string
+  publishFeeStatus?: PublishFeeStatus | null
+  isPublished: boolean
+  onRefreshStatus?: () => Promise<unknown>
+  variant?: 'button' | 'card'
+  className?: string
+}) {
   const router = useRouter()
-  const supabase = createClient()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [open, setOpen] = useState(searchParams.get('publish') === 'ready')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  async function publish() {
+  const resolvedPublishFeeStatus: PublishFeeStatus = publishFeeStatus ?? 'unpaid'
+
+  useEffect(() => {
+    if (searchParams.get('publish') === 'ready' && resolvedPublishFeeStatus !== 'paid') {
+      const timer = setTimeout(() => {
+        if (onRefreshStatus) {
+          void onRefreshStatus()
+          return
+        }
+        router.refresh()
+      }, 1200)
+      return () => clearTimeout(timer)
+    }
+  }, [onRefreshStatus, resolvedPublishFeeStatus, router, searchParams])
+
+  useEffect(() => {
+    if (searchParams.get('publish') !== 'cancelled' || resolvedPublishFeeStatus !== 'pending') {
+      return
+    }
+
+    let cancelled = false
+
+    async function resetPending() {
+      const response = await fetch(`/api/events/${eventId}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetStatus: 'reset_pending' }),
+      })
+
+      if (!cancelled && response.ok) {
+        setOpen(false)
+        router.replace(pathname)
+        if (onRefreshStatus) {
+          void onRefreshStatus()
+        } else {
+          router.refresh()
+        }
+      }
+    }
+
+    void resetPending()
+
+    return () => {
+      cancelled = true
+    }
+  }, [eventId, onRefreshStatus, pathname, resolvedPublishFeeStatus, router, searchParams])
+
+  async function openCheckout() {
     setLoading(true)
-    await supabase.from('events').update({ status: 'published' }).eq('id', eventId)
-    router.refresh()
+    setError('')
+    const response = await fetch(`/api/events/${eventId}/publish-checkout`, {
+      method: 'POST',
+    })
+    const json = await response.json()
+    if (response.ok && json.url) {
+      window.location.href = json.url
+      return
+    }
+    setError(json.error ?? 'Something went wrong. Please try again.')
     setLoading(false)
   }
 
+  async function publishNow() {
+    setLoading(true)
+    setError('')
+    const response = await fetch(`/api/events/${eventId}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetStatus: 'published' }),
+    })
+
+    if (response.ok) {
+      setOpen(false)
+      router.refresh()
+      return
+    }
+
+    const json = await response.json().catch(() => ({}))
+    setError(json.error ?? 'Something went wrong. Please try again.')
+    setLoading(false)
+  }
+
+  async function resetPendingState() {
+    setLoading(true)
+    setError('')
+
+    const response = await fetch(`/api/events/${eventId}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetStatus: 'reset_pending' }),
+    })
+
+    if (response.ok) {
+      setOpen(false)
+      router.replace(pathname)
+      if (onRefreshStatus) {
+        await onRefreshStatus()
+      } else {
+        router.refresh()
+      }
+      return
+    }
+
+    const json = await response.json().catch(() => ({}))
+    setError(json.error ?? 'Something went wrong. Please try again.')
+    setLoading(false)
+  }
+
+  const feePaid = resolvedPublishFeeStatus === 'paid'
+  const body = feePaid ? (
+    <>
+      <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
+        <p className="mb-2 text-sm font-medium" style={{ color: '#2C2B26' }}>
+          Your event is ready to go live
+        </p>
+        <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
+          Everything is unlocked for <span className="font-medium">{eventTitle}</span>. Publish when it feels ready and guests will be able to open the page straight away.
+        </p>
+      </div>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void publishNow()}
+          disabled={loading || isPublished}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
+          style={{ background: '#2C2B26', color: '#FAFAF7', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+          Publish event
+        </button>
+      </div>
+    </>
+  ) : resolvedPublishFeeStatus === 'pending' ? (
+    <>
+      <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
+        <p className="mb-2 text-sm font-medium" style={{ color: '#2C2B26' }}>
+          Confirming your payment
+        </p>
+        <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
+          We&apos;re waiting for Stripe to confirm the checkout. If you backed out before paying, you can reset this and try again.
+        </p>
+      </div>
+      <div className="flex flex-wrap justify-end gap-3">
+        <button
+          type="button"
+          onClick={() => void resetPendingState()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
+          style={{ border: '1px solid #E8E3D9', background: '#FFFFFF', color: '#2C2B26', opacity: loading ? 0.7 : 1 }}
+        >
+          Reset and try again
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (onRefreshStatus) {
+              void onRefreshStatus()
+              return
+            }
+            router.refresh()
+          }}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium"
+          style={{ background: '#2C2B26', color: '#FAFAF7' }}
+        >
+          <Loader2 size={14} className="animate-spin" />
+          Refresh status
+        </button>
+      </div>
+    </>
+  ) : (
+    <>
+      <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
+          <p className="mb-2 text-sm font-medium" style={{ color: '#2C2B26' }}>
+            Go live when everything feels ready
+          </p>
+          <p className="text-sm leading-6" style={{ color: '#6B6255' }}>
+            Publishing makes your event page shareable with guests, turns on your public link, and lets people RSVP and contribute in one polished place.
+          </p>
+        </div>
+        <div className="rounded-2xl border p-4" style={{ borderColor: '#E8E3D9', background: '#FFFFFF' }}>
+          <p className="mb-1 text-xs uppercase tracking-wide" style={{ color: '#B5A98A' }}>
+            One-time publish fee
+          </p>
+          <p className="text-2xl font-medium" style={{ color: '#2C2B26', letterSpacing: '-0.03em' }}>
+            {formatFee(PUBLISH_EVENT_FEE_CENTS)}
+          </p>
+          <p className="mt-2 text-xs leading-5" style={{ color: '#8B8670' }}>
+            Per event. Once paid, you can unpublish and republish this event whenever you need.
+          </p>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void openCheckout()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-opacity"
+          style={{ background: '#2C2B26', color: '#FAFAF7', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+          Continue to secure checkout
+        </button>
+      </div>
+    </>
+  )
+
   return (
-    <button
-      onClick={publish}
-      disabled={loading}
-      className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
-      style={{ background: '#2C2B26', color: 'white', opacity: loading ? 0.7 : 1 }}
-    >
-      {loading ? 'Publishing…' : 'Publish to go live'}
-    </button>
+    <>
+      {variant === 'card' ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={className ?? 'rounded-2xl border p-4 text-left transition-colors'}
+          style={{
+            borderColor: '#E8E3D9',
+            background: '#FFFFFF',
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full"
+              style={{ background: '#F5F0E8', color: '#8B8670' }}
+            >
+              <Sparkles size={15} />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium" style={{ color: '#2C2B26' }}>
+                {feePaid ? 'Publish event' : 'Unlock publishing'}
+              </p>
+              <p className="text-xs leading-5" style={{ color: '#8B8670' }}>
+                {feePaid
+                  ? 'Your publish fee is already covered. Make the event live whenever you are ready.'
+                  : 'Make the event shareable with guests once the one-time publish fee is covered.'}
+              </p>
+            </div>
+          </div>
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+          style={{ background: '#2C2B26', color: 'white' }}
+        >
+          {feePaid ? 'Publish event' : 'Publish to go live'}
+        </button>
+      )}
+
+      <DashboardModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={feePaid ? 'Publish your event' : 'Ready to share your event?'}
+        description={feePaid
+          ? 'Your publish fee is already sorted for this event.'
+          : 'A simple one-time checkout unlocks publishing for this event.'}
+      >
+        <div className="flex flex-col gap-5">
+          {body}
+          {error && (
+            <p className="text-sm" style={{ color: '#8B8670' }}>{error}</p>
+          )}
+        </div>
+      </DashboardModal>
+    </>
   )
 }

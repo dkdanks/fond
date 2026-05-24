@@ -2,6 +2,7 @@
 
 import { Check, ChevronDown, ChevronRight, Gift, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ImageUploadInput } from '@/components/dashboard/image-upload-input'
+import { DashboardTableFrame, DashboardTableScroll } from '@/components/dashboard/table-shell'
 import { RegistryLabel } from '@/components/registry/forms'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, type RegistryPool, type Contribution } from '@/types'
@@ -91,18 +92,18 @@ export function RegistryItemsDisplay({
                 <button onClick={() => onToggleGroup(group)} className="flex items-center gap-2 text-left">
                   {collapsedGroups.has(group) ? <ChevronRight size={16} style={{ color: '#8B8670' }} /> : <ChevronDown size={16} style={{ color: '#8B8670' }} />}
                   <span className="text-sm font-semibold" style={{ color: '#2C2B26' }}>{group}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#F0EDE8', color: '#8B8670' }}>{groupItems.length} item{groupItems.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#F0EDE8', color: '#8B8670' }}>{groupItems.length} fund{groupItems.length !== 1 ? 's' : ''}</span>
                 </button>
                 <button
                   onClick={() => onOpenAddItem(group)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border transition-colors"
                   style={{ borderColor: '#E8E3D9', color: '#8B8670', background: 'white' }}
                 >
-                  <Plus size={11} /> Add to {group}
+                  <Plus size={11} /> Add fund
                 </button>
               </>
             ) : (
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#B5A98A' }}>Ungrouped items</span>
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#B5A98A' }}>Standalone funds</span>
             )}
           </div>
 
@@ -164,15 +165,16 @@ export function RegistryItemsDisplay({
                 })}
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden border" style={{ background: 'white', borderColor: '#E8E3D9' }}>
-                <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+              <DashboardTableFrame>
+                <DashboardTableScroll>
+                <table className="w-full text-sm" style={{ borderCollapse: 'collapse', minWidth: 760 }}>
                   <thead>
                     <tr style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
-                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Item</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Description</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Amount</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Fund</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Guest note</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Target</th>
                       <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Raised</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Group</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wide" style={{ color: '#B5A98A' }}>Collection</th>
                       <th className="px-4 py-3 w-16"></th>
                     </tr>
                   </thead>
@@ -191,10 +193,10 @@ export function RegistryItemsDisplay({
                           {isEditing ? (
                             <td colSpan={6} className="px-4 py-3">
                               <div className="grid grid-cols-5 gap-2">
-                                <div><input className={inputCls} style={inputStyle} value={editName} onChange={event => onEditNameChange(event.target.value)} placeholder="Name" /></div>
-                                <div><input className={inputCls} style={inputStyle} value={editDesc} onChange={event => onEditDescChange(event.target.value)} placeholder="Description" /></div>
-                                <div><input type="number" min="1" step="0.01" className={inputCls} style={inputStyle} value={editAmount} onChange={event => onEditAmountChange(event.target.value)} placeholder="Amount" /></div>
-                                <div><input list="edit-groups-list2" className={inputCls} style={inputStyle} value={editGroup} onChange={event => onEditGroupChange(event.target.value)} placeholder="Group" /><datalist id="edit-groups-list2">{groups.map(groupName => <option key={groupName} value={groupName} />)}</datalist></div>
+                                <div><input className={inputCls} style={inputStyle} value={editName} onChange={event => onEditNameChange(event.target.value)} placeholder="Fund name" /></div>
+                                <div><input className={inputCls} style={inputStyle} value={editDesc} onChange={event => onEditDescChange(event.target.value)} placeholder="Guest note" /></div>
+                                <div><input type="number" min="1" step="0.01" className={inputCls} style={inputStyle} value={editAmount} onChange={event => onEditAmountChange(event.target.value)} placeholder="Target" /></div>
+                                <div><input list="edit-groups-list2" className={inputCls} style={inputStyle} value={editGroup} onChange={event => onEditGroupChange(event.target.value)} placeholder="Collection" /><datalist id="edit-groups-list2">{groups.map(groupName => <option key={groupName} value={groupName} />)}</datalist></div>
                                 <div className="flex gap-1.5">
                                   <button onClick={() => onSaveEdit(item.id)} disabled={editSaving} className="flex-1 py-2 rounded-xl text-xs font-semibold" style={{ background: '#2C2B26', color: 'white' }}>
                                     {editSaving ? '…' : 'Save'}
@@ -225,7 +227,8 @@ export function RegistryItemsDisplay({
                     })}
                   </tbody>
                 </table>
-              </div>
+                </DashboardTableScroll>
+              </DashboardTableFrame>
             )
           )}
         </div>

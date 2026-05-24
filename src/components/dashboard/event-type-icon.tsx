@@ -1,4 +1,4 @@
-import { Heart, Sparkles, Star, Home, Gift } from 'lucide-react'
+import { Heart, Sparkles, Star, Home, Gift, Wand2 } from 'lucide-react'
 import type { EventType } from '@/types'
 import { EVENT_TYPE_COLORS } from '@/types'
 
@@ -8,6 +8,7 @@ const ICONS: Record<EventType, React.ComponentType<{ size?: number; color?: stri
   mitzvah:      Star,
   housewarming: Home,
   birthday:     Gift,
+  other:        Wand2,
 }
 
 interface EventTypeIconProps {

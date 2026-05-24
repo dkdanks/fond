@@ -12,19 +12,39 @@ export type Filter = 'all' | 'attending' | 'declined' | 'pending'
 export function parseGuestList(raw: string): ParsedRow[] {
   return raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean).flatMap((line): ParsedRow[] => {
     if (HEADER_RE.test(line)) return []
+    const bracketMatch = line.match(/^(.*?)(?:<([^>]+)>)$/)
+    if (bracketMatch) {
+      const name = bracketMatch[1]?.trim().replace(/^"|"$/g, '')
+      const email = bracketMatch[2]?.trim()
+      if (email && EMAIL_RE.test(email)) {
+        return [{ name: name || email.split('@')[0], email }]
+      }
+    }
+
     const parts = line.includes('\t')
       ? line.split('\t').map(part => part.trim().replace(/^"|"$/g, ''))
       : line.split(',').map(part => part.trim().replace(/^"|"$/g, ''))
     const emailIdx = parts.findIndex(part => EMAIL_RE.test(part))
-    if (emailIdx === -1) return [{ name: line, email: '', error: 'No valid email found' }]
-    const email = parts[emailIdx]
-    const name = parts.filter((_, idx) => idx !== emailIdx).join(', ').trim() || email.split('@')[0]
-    return [{ name, email }]
+
+    if (emailIdx > -1) {
+      const email = parts[emailIdx]
+      const name = parts.filter((_, idx) => idx !== emailIdx).join(', ').trim() || email.split('@')[0]
+      return [{ name, email }]
+    }
+
+    if (parts.length === 1 && EMAIL_RE.test(parts[0])) {
+      return [{ name: parts[0].split('@')[0], email: parts[0] }]
+    }
+
+    const fallbackName = parts.join(' ').trim()
+    if (!fallbackName) return []
+    return [{ name: fallbackName, email: '' }]
   })
 }
 
 export function parseCsvGuests(raw: string): ParsedCsvRow[] {
   return raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean).flatMap((line): ParsedCsvRow[] => {
+    if (HEADER_RE.test(line)) return []
     const parts = line.split(',').map(part => part.trim().replace(/^"|"$/g, ''))
     if (parts.length < 2) return []
     return [{

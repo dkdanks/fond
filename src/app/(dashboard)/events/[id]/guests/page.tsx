@@ -16,9 +16,10 @@ import {
 } from '@/lib/guest-management'
 import { SkeletonRow } from '@/components/app/skeleton'
 import { Pagination } from '@/components/app/pagination'
+import { DashboardTableFrame, DashboardTableScroll } from '@/components/dashboard/table-shell'
 import { DashboardErrorState } from '@/components/dashboard/page-layout'
 import {
-  AddGuestPanels,
+  AddGuestsModal,
   BulkActionBar,
   GuestFilters,
   GuestsEmptyState,
@@ -42,8 +43,8 @@ export default function GuestsPage() {
   const [statsDeclined, setStatsDeclined] = useState(0)
   const [statsPending, setStatsPending] = useState(0)
   const [statsTotal, setStatsTotal] = useState(0)
-  const [addMode, setAddMode] = useState<AddMode>('none')
-  const [addDropdown, setAddDropdown] = useState(false)
+  const [addMode, setAddMode] = useState<AddMode>('paste')
+  const [addModalOpen, setAddModalOpen] = useState(false)
 
   // Single add
   const [singleFirstName, setSingleFirstName] = useState('')
@@ -190,7 +191,7 @@ export default function GuestsPage() {
     setSingleFirstName(''); setSingleLastName(''); setSingleEmail(''); setSinglePhone('')
     setSingleNote(''); setSinglePlusOne(false)
     setAdding(false)
-    setAddMode('none')
+    setAddModalOpen(false)
     load(page, search, filter)
   }
 
@@ -220,16 +221,17 @@ export default function GuestsPage() {
     setImporting(true)
     const { data: inserted } = await supabase
       .from('guests')
-      .insert(valid.map(r => ({ event_id: id, name: r.name, email: r.email })))
-      .select('id')
-    if (sendInvites && inserted?.length) {
+      .insert(valid.map(r => ({ event_id: id, name: r.name, email: r.email || null })))
+      .select('id, email')
+    const inviteableGuestIds = (inserted ?? []).filter(guest => guest.email).map(guest => guest.id)
+    if (sendInvites && inviteableGuestIds.length) {
       await fetch('/api/send-invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: id, guestIds: inserted.map(g => g.id) }),
+        body: JSON.stringify({ eventId: id, guestIds: inviteableGuestIds }),
       })
     }
-    setPasteText(''); setParsed([]); setAddMode('none'); setImporting(false)
+    setPasteText(''); setParsed([]); setAddModalOpen(false); setImporting(false)
     load(page, search, filter)
   }
 
@@ -249,15 +251,15 @@ export default function GuestsPage() {
     )
     setCsvText('')
     setCsvImporting(false)
-    setAddMode('none')
+    setAddModalOpen(false)
     load(page, search, filter)
   }
 
   function loadFile(file: File) {
     const reader = new FileReader()
-    reader.onload = e => setPasteText(e.target?.result as string ?? '')
+    reader.onload = e => setCsvText(e.target?.result as string ?? '')
     reader.readAsText(file)
-    setAddMode('paste')
+    setAddMode('csv')
   }
 
   function startEdit(guest: Guest) {
@@ -349,10 +351,8 @@ export default function GuestsPage() {
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
       <GuestsHeader
         statsTotal={statsTotal}
-        addDropdownOpen={addDropdown}
-        onToggleAddDropdown={() => setAddDropdown(o => !o)}
         onExport={exportCSV}
-        onSelectAddMode={mode => { setAddMode(mode); setAddDropdown(false) }}
+        onOpenAddGuests={() => { setAddMode('paste'); setAddModalOpen(true) }}
       />
 
       <GuestStatsCards
@@ -362,9 +362,11 @@ export default function GuestsPage() {
         acceptanceRate={acceptanceRate}
       />
 
-      <AddGuestPanels
+      <AddGuestsModal
+        open={addModalOpen}
         addMode={addMode}
-        onClose={() => setAddMode('none')}
+        onClose={() => setAddModalOpen(false)}
+        onChangeMode={setAddMode}
         onAddGuest={addGuest}
         singleFirstName={singleFirstName}
         singleLastName={singleLastName}
@@ -419,8 +421,8 @@ export default function GuestsPage() {
       {error ? (
         <DashboardErrorState message={error} onRetry={() => void load(page, search, filter)} />
       ) : loading ? (
-        <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
-          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+        <DashboardTableFrame>
+          <DashboardTableScroll maxHeight="calc(100vh - 400px)">
             <table className="w-full text-sm" style={{ minWidth: 640 }}>
               <thead>
                 <tr className="sticky top-0 z-10" style={{ background: '#FAFAF7', borderBottom: '1px solid #E8E3D9' }}>
@@ -437,15 +439,15 @@ export default function GuestsPage() {
                 {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={5} />)}
               </tbody>
             </table>
-          </div>
-        </div>
+          </DashboardTableScroll>
+        </DashboardTableFrame>
       ) : guests.length === 0 ? (
         <GuestsEmptyState
           hasGuests={statsTotal > 0}
-          onAddFirstGuest={() => { setAddMode('single'); setAddDropdown(false) }}
+          onAddFirstGuest={() => { setAddMode('single'); setAddModalOpen(true) }}
         />
       ) : (
-        <div className="rounded-2xl border" style={{ borderColor: '#E8E3D9' }}>
+        <div>
           <GuestTable
             guests={guests}
             allFilteredSelected={allFilteredSelected}

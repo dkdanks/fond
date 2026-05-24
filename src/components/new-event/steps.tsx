@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { ElementType } from 'react'
-import { ChevronLeft, ChevronRight, Gift, Heart, House, Loader2, Sparkles, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Gift, Heart, House, Loader2, Sparkles, Star, Wand2 } from 'lucide-react'
 import type { EventType } from '@/types'
 
 export const EVENT_TYPES: { type: EventType; label: string; description: string; icon: ElementType }[] = [
@@ -11,13 +11,25 @@ export const EVENT_TYPES: { type: EventType; label: string; description: string;
   { type: 'mitzvah', label: 'Bar / Bat Mitzvah', description: 'Mark this milestone', icon: Star },
   { type: 'housewarming', label: 'Housewarming', description: 'Celebrate a new home', icon: House },
   { type: 'birthday', label: 'Birthday', description: 'Another trip around the sun', icon: Gift },
+  { type: 'other', label: 'Other', description: 'Something uniquely yours', icon: Wand2 },
 ]
+
+function formatDateOnly(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function parseDateOnly(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
 
 export function CalendarPicker({ selected, onChange }: { selected: string; onChange: (date: string) => void }) {
   const today = new Date()
+  const selectedDate = selected ? parseDateOnly(selected) : null
   const [viewing, setViewing] = useState({
-    year: selected ? new Date(selected).getFullYear() : today.getFullYear(),
-    month: selected ? new Date(selected).getMonth() : today.getMonth(),
+    year: selectedDate?.getFullYear() ?? today.getFullYear(),
+    month: selectedDate?.getMonth() ?? today.getMonth(),
   })
 
   const firstDay = new Date(viewing.year, viewing.month, 1).getDay()
@@ -33,16 +45,14 @@ export function CalendarPicker({ selected, onChange }: { selected: string; onCha
   }
 
   function selectDay(day: number) {
-    const nextDate = new Date(viewing.year, viewing.month, day)
-    onChange(nextDate.toISOString().split('T')[0])
+    onChange(formatDateOnly(viewing.year, viewing.month, day))
   }
 
-  const selectedDay = selected ? new Date(selected) : null
   const isSelected = (day: number) => {
-    if (!selectedDay) return false
-    return selectedDay.getFullYear() === viewing.year &&
-      selectedDay.getMonth() === viewing.month &&
-      selectedDay.getDate() === day
+    if (!selectedDate) return false
+    return selectedDate.getFullYear() === viewing.year &&
+      selectedDate.getMonth() === viewing.month &&
+      selectedDate.getDate() === day
   }
 
   const isPast = (day: number) => {
@@ -124,7 +134,7 @@ export function EventTypeStep({
         What are you celebrating?
       </h1>
       <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-        Choose and we&rsquo;ll set everything up for you.
+        Choose and we&apos;ll set everything up for you.
       </p>
 
       <div className="grid grid-cols-2 gap-3 mb-10">
@@ -318,7 +328,7 @@ export function DetailsStep({
             style={{ transform: dateUndecided ? 'translateX(21px)' : 'translateX(2px)' }}
           />
         </div>
-        <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&rsquo;t decided yet</span>
+        <span className="text-sm" style={{ color: '#2C2B26' }}>We haven&apos;t decided yet</span>
       </label>
 
       <div className="mb-10">
@@ -377,7 +387,7 @@ export function SlugStep({
         Choose your URL.
       </h1>
       <p className="text-base mb-10" style={{ color: '#8B8670' }}>
-        This is the link you&rsquo;ll share with your guests.
+        This is the link you&apos;ll share with your guests.
       </p>
 
       <div className="mb-6">

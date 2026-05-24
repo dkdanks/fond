@@ -13,7 +13,12 @@ import type {
   WeddingPartyMember, TravelCard, PlacedSticker
 } from '@/types'
 import { resolveFontFamily } from '@/lib/font-family'
-import { getLegacyPageStickers, getSectionStickers, mergeSectionStickers } from '@/lib/stickers'
+import {
+  getLegacyPageStickers,
+  getSectionStickers,
+  mergeSectionStickers,
+  resolveStickerPlacement,
+} from '@/lib/stickers'
 import { formatDate } from '@/lib/utils'
 import { THEMES, getThemeById, type Theme } from '@/lib/themes'
 import { ColorPickerPopover } from '@/components/ui/color-picker-popover'
@@ -79,6 +84,7 @@ const SECTIONS_BY_TYPE: Record<EventType, SectionKey[]> = {
   birthday:     ['welcome', 'schedule', 'registry', 'faq'],
   mitzvah:      ['welcome', 'story', 'schedule', 'attire', 'travel', 'registry', 'faq'],
   housewarming: ['welcome', 'schedule', 'registry', 'faq'],
+  other:        ['welcome', 'story', 'schedule', 'registry', 'faq'],
 }
 
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -210,11 +216,14 @@ interface PreviewProps {
   sectionOrder: string[]
   sectionSpacing: Record<string, number>
   stickers: PlacedSticker[]
-  activeStickerSection: string
+  viewport: 'desktop' | 'mobile'
+  selectedStickerId: string | null
   onSectionStickersChange: (sectionKey: string, nextStickers: PlacedSticker[]) => void
   onSectionClick: (s: string) => void
   onSectionSpacingChange?: (sectionKey: string, spacing: number) => void
   sectionLayerRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>
+  onSelectSticker: (stickerId: string | null) => void
+  onBeginStickerChange?: (stickers: PlacedSticker[]) => void
 }
 
 const MAX_SECTION_SPACING = 240
@@ -338,11 +347,14 @@ function EventPreview({
   sectionOrder,
   sectionSpacing,
   stickers,
-  activeStickerSection,
+  viewport,
+  selectedStickerId,
   onSectionStickersChange,
   onSectionClick,
   onSectionSpacingChange,
   sectionLayerRefs,
+  onSelectSticker,
+  onBeginStickerChange,
 }: PreviewProps) {
   const c = content
   const hasStory = c.our_story?.introduction || c.our_story?.story
@@ -364,16 +376,17 @@ function EventPreview({
 
   function renderStickerLayer(sectionKey: string) {
     const sectionStickers = getSectionStickers(stickers, sectionKey)
-    if (activeStickerSection === sectionKey) {
-      return (
-        <StickerCanvas
-          stickers={sectionStickers}
-          onChange={next => onSectionStickersChange(sectionKey, next)}
-          primaryColor={primaryColor}
-        />
-      )
-    }
-    return <StickerOverlay stickers={sectionStickers} />
+    return (
+      <StickerCanvas
+        stickers={sectionStickers}
+        onChange={next => onSectionStickersChange(sectionKey, next)}
+        primaryColor={primaryColor}
+        viewport={viewport}
+        selectedId={selectedStickerId}
+        onSelect={onSelectSticker}
+        onBeginChange={onBeginStickerChange}
+      />
+    )
   }
 
   function renderSectionLayer(sectionKey: string, node: React.ReactNode) {
@@ -936,7 +949,7 @@ function EventPreview({
         <p className="text-xs opacity-25">Powered by Joyabl</p>
       </div>
 
-      <StickerOverlay stickers={legacyPageStickers} />
+      <StickerOverlay stickers={legacyPageStickers} viewport={viewport} />
     </div>
   )
 }
@@ -978,6 +991,7 @@ export default function WebsiteEditorPage() {
   const [showAddSection, setShowAddSection] = useState(false)
   const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
   const [stickers, setStickers] = useState<PlacedSticker[]>([])
+  const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null)
   const [showStickerBrowser, setShowStickerBrowser] = useState(false)
   const [imageAdjustTarget, setImageAdjustTarget] = useState<{ key: string; url: string; title: string } | null>(null)
 
@@ -1001,6 +1015,8 @@ export default function WebsiteEditorPage() {
   const previewScrollRef = useRef<HTMLDivElement | null>(null)
   const previewFrameRef = useRef<HTMLDivElement | null>(null)
   const previewSectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const stickerHistoryRef = useRef<PlacedSticker[][]>([])
+  const stickerClipboardRef = useRef<PlacedSticker | null>(null)
 
   // Load
   useEffect(() => {
@@ -1011,8 +1027,9 @@ export default function WebsiteEditorPage() {
       setContent((data.content as EventContent) ?? {})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedPalette = (data.content as any)?._palette
-      const restoredPrimary = savedPalette?.primary ?? data.primary_color ?? '#2C2B26'
-      const restoredBg = savedPalette?.bg ?? data.accent_color ?? '#F5F0E8'
+      const eventRecord = data as Event & { font_family?: string | null; access_password?: string | null }
+      const restoredPrimary = savedPalette?.primary ?? eventRecord.primary_color ?? '#2C2B26'
+      const restoredBg = savedPalette?.bg ?? eventRecord.accent_color ?? '#F5F0E8'
       setPrimaryColor(restoredPrimary)
       setBgColor(restoredBg)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1030,7 +1047,7 @@ export default function WebsiteEditorPage() {
       const savedDisplayFont = (data.content as any)?._displayFont
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedBodyFont = (data.content as any)?._bodyFont
-      setDisplayFont(savedDisplayFont ?? savedFont ?? (data as any).font_family ?? 'Cormorant Garamond')
+      setDisplayFont(savedDisplayFont ?? savedFont ?? eventRecord.font_family ?? 'Cormorant Garamond')
       setBodyFont(savedBodyFont ?? 'Lora')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedTheme = (data.content as any)?._theme
@@ -1041,8 +1058,7 @@ export default function WebsiteEditorPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const savedSectionLayouts = (data.content as any)?._section_layouts
       setSectionLayouts(savedSectionLayouts ?? {})
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pw = (data as any).access_password ?? ''
+      const pw = eventRecord.access_password ?? ''
       setSharePassword(pw)
       setPasswordEnabled(!!pw)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1153,11 +1169,20 @@ export default function WebsiteEditorPage() {
 
   function updateStickers(next: PlacedSticker[]) {
     setStickers(next)
+    setSelectedStickerId(current => next.some(sticker => sticker.id === current) ? current : null)
     setContent(c => {
       const nc = { ...c, _stickers: next }
       scheduleSave({ content: nc })
       return nc
     })
+  }
+
+  function pushStickerHistory(snapshot: PlacedSticker[]) {
+    stickerHistoryRef.current = [...stickerHistoryRef.current, snapshot.map(sticker => ({ ...sticker }))].slice(-40)
+  }
+
+  function beginStickerChange(snapshot: PlacedSticker[]) {
+    pushStickerHistory(snapshot)
   }
 
   function updateSectionStickers(sectionKey: string, nextSectionStickers: PlacedSticker[]) {
@@ -1197,11 +1222,94 @@ export default function WebsiteEditorPage() {
       y,
       width: 15,
       rotation: 0,
+      mobileX: x,
+      mobileY: y,
+      mobileWidth: 15,
+      mobileRotation: 0,
+      mobileDetached: false,
       opacity: 1,
       color: primaryColor,
     }
+    pushStickerHistory(stickers)
     updateStickers([...stickers, newSticker])
+    setSelectedStickerId(newSticker.id)
   }
+
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      const element = target as HTMLElement | null
+      if (!element) return false
+      const tag = element.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || element.isContentEditable || Boolean(element.closest('[contenteditable="true"]'))
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+      if (isEditableTarget(event.target)) return
+      const hasModifier = event.metaKey || event.ctrlKey
+      if (!hasModifier) {
+        if ((event.key === 'Backspace' || event.key === 'Delete') && selectedStickerId) {
+          event.preventDefault()
+          pushStickerHistory(stickers)
+          updateStickers(stickers.filter(sticker => sticker.id !== selectedStickerId))
+          setSelectedStickerId(null)
+        }
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      const selectedSticker = stickers.find(sticker => sticker.id === selectedStickerId) ?? null
+
+      if (key === 'c' && selectedSticker) {
+        event.preventDefault()
+        stickerClipboardRef.current = { ...selectedSticker }
+        return
+      }
+
+      if (key === 'x' && selectedSticker) {
+        event.preventDefault()
+        stickerClipboardRef.current = { ...selectedSticker }
+        pushStickerHistory(stickers)
+        updateStickers(stickers.filter(sticker => sticker.id !== selectedSticker.id))
+        setSelectedStickerId(null)
+        return
+      }
+
+      if (key === 'v' && stickerClipboardRef.current) {
+        event.preventDefault()
+        const copied = stickerClipboardRef.current
+        const desktopPlacement = resolveStickerPlacement(copied, 'desktop')
+        const mobilePlacement = resolveStickerPlacement(copied, 'mobile')
+        const targetSection = selectedSticker?.sectionId ?? copied.sectionId ?? activeSection ?? 'welcome'
+        const nextSticker: PlacedSticker = {
+          ...copied,
+          id: Math.random().toString(36).slice(2, 10),
+          sectionId: targetSection,
+          x: Math.min(95, desktopPlacement.x + 3),
+          y: Math.min(95, desktopPlacement.y + 3),
+          width: desktopPlacement.width,
+          rotation: desktopPlacement.rotation,
+          mobileX: Math.min(95, mobilePlacement.x + 3),
+          mobileY: Math.min(95, mobilePlacement.y + 3),
+          mobileWidth: mobilePlacement.width,
+          mobileRotation: mobilePlacement.rotation,
+        }
+        pushStickerHistory(stickers)
+        updateStickers([...stickers, nextSticker])
+        setSelectedStickerId(nextSticker.id)
+        return
+      }
+
+      if (key === 'z' && stickerHistoryRef.current.length > 0) {
+        event.preventDefault()
+        const previous = stickerHistoryRef.current[stickerHistoryRef.current.length - 1]
+        stickerHistoryRef.current = stickerHistoryRef.current.slice(0, -1)
+        updateStickers(previous)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeydown)
+    return () => document.removeEventListener('keydown', handleKeydown)
+  }, [activeSection, selectedStickerId, stickers, updateStickers])
 
   function setSectionSpacing(sectionKey: string, spacing: number) {
     const clamped = Math.max(0, Math.min(MAX_SECTION_SPACING, Math.round(spacing)))
@@ -1309,6 +1417,24 @@ export default function WebsiteEditorPage() {
 
   const eventUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/e/${event?.slug}`
   const imageAdjustments = content._image_adjustments ?? {}
+  const showWelcomeBackgroundControl = heroLayout !== 'full-bleed' || !event?.cover_image_url
+  const welcomeBackgroundConfig = heroLayout === 'split'
+    ? {
+        label: 'Text panel background',
+        pickerTitle: 'Text panel',
+        helper: 'Used behind the text side of the split hero.',
+      }
+    : heroLayout === 'full-bleed'
+      ? {
+          label: 'Hero background',
+          pickerTitle: 'Hero',
+          helper: 'Used when no cover image is set.',
+        }
+      : {
+          label: 'Hero background',
+          pickerTitle: 'Hero',
+          helper: 'Used behind the welcome section.',
+        }
 
   // ── Schedule helpers ─────────────────────────────────────────────────────
   function addScheduleItem() {
@@ -1501,11 +1627,14 @@ export default function WebsiteEditorPage() {
                 rsvpHref={`/e/${event.slug}/rsvp`}
                 registryHref={`/events/${id}/preview/registry`}
                 editor={{
-                  activeStickerSection: activeSection ?? 'welcome',
                   onSectionStickersChange: updateSectionStickers,
                   onSectionClick: openSection,
                   onSectionSpacingChange: setSectionSpacing,
                   sectionLayerRefs: previewSectionRefs,
+                  viewport,
+                  selectedStickerId,
+                  onSelectSticker: setSelectedStickerId,
+                  onBeginStickerChange: beginStickerChange,
                 }}
               />
             </div>
@@ -1563,6 +1692,7 @@ export default function WebsiteEditorPage() {
                 event={{ ...event, content }}
                 rsvpHref={`/e/${event.slug}/rsvp`}
                 registryHref={`/e/${event.slug}/registry`}
+                viewport={viewport}
               />
             </div>
           </div>
@@ -1685,7 +1815,7 @@ export default function WebsiteEditorPage() {
               {/* Colours */}
               <div className="border-t" style={{ borderColor: '#F0EDE8' }}>
                 <CollapseSection label="Colours">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs" style={{ color: '#8B8670' }}>Text colour</span>
                       <ColorPickerPopover
@@ -2099,7 +2229,43 @@ export default function WebsiteEditorPage() {
                               <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
                                 Used in full-bleed and split hero layouts.
                               </p>
+                              {heroLayout === 'full-bleed' && event?.cover_image_url && (
+                                <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
+                                  In full bleed, the cover image takes priority over the background colour.
+                                </p>
+                              )}
                             </div>
+                            {showWelcomeBackgroundControl && (
+                              <div>
+                                <Label>{welcomeBackgroundConfig.label}</Label>
+                                <ColorPickerPopover
+                                  value={content.welcome?.background_color ?? bgColor}
+                                  onChange={value => updateContent({ welcome: { ...content.welcome, background_color: value } })}
+                                  title={welcomeBackgroundConfig.pickerTitle}
+                                  subtitle="Background colour"
+                                  placement="bottom"
+                                  align="end"
+                                  renderTrigger={({ value }) => (
+                                    <div
+                                      className="flex items-center gap-3 rounded-2xl border px-3 py-3"
+                                      style={{ borderColor: '#E8E3D9', background: '#FAFAF7' }}
+                                    >
+                                      <div
+                                        className="h-10 w-10 rounded-2xl border"
+                                        style={{ background: value, borderColor: 'rgba(44,43,38,0.08)' }}
+                                      />
+                                      <div className="min-w-0 flex-1 text-left">
+                                        <p className="text-xs font-medium" style={{ color: '#8B8670' }}>Hex</p>
+                                        <p className="truncate text-sm font-semibold" style={{ color: '#2C2B26' }}>{value.toUpperCase()}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                />
+                                <p className="mt-1 text-xs" style={{ color: '#B5A98A' }}>
+                                  {welcomeBackgroundConfig.helper}
+                                </p>
+                              </div>
+                            )}
                             <Field label="Greeting message">
                               <textarea
                                 className={textareaCls}

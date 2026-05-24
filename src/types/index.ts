@@ -1,7 +1,8 @@
-export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming' | 'birthday'
+export type EventType = 'wedding' | 'baby_shower' | 'mitzvah' | 'housewarming' | 'birthday' | 'other'
 export type RsvpStatus = 'pending' | 'attending' | 'declined'
 export type ContributionStatus = 'pending' | 'completed' | 'refunded'
 export type EventStatus = 'draft' | 'published'
+export type PublishFeeStatus = 'unpaid' | 'pending' | 'paid'
 export type ImageUploadProfile = 'hero' | 'section' | 'avatar' | 'card'
 
 export interface UploadedImageAsset {
@@ -76,6 +77,11 @@ export interface PlacedSticker {
   y: number         // % of preview height (0–100)
   width: number     // % of preview width
   rotation: number  // degrees
+  mobileX?: number
+  mobileY?: number
+  mobileWidth?: number
+  mobileRotation?: number
+  mobileDetached?: boolean
   opacity: number   // 0–1
   color: string     // hex color applied directly to SVG fill
 }
@@ -86,6 +92,7 @@ export interface EventContent {
     show_rsvp?: boolean
     rsvp_deadline?: string
     rsvp_button_text?: string
+    background_color?: string
   }
   our_story?: {
     introduction?: string
@@ -143,6 +150,10 @@ export interface Event {
   primary_color: string
   accent_color: string
   status: EventStatus
+  publish_fee_status: PublishFeeStatus
+  publish_fee_paid_at: string | null
+  publish_fee_checkout_session_id: string | null
+  published_at: string | null
   content: EventContent | null
   created_at: string
 }
@@ -198,6 +209,7 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   mitzvah: 'Bar / Bat Mitzvah',
   housewarming: 'Housewarming',
   birthday: 'Birthday',
+  other: 'Other',
 }
 
 export const EVENT_TYPE_DESCRIPTIONS: Record<EventType, string> = {
@@ -206,6 +218,7 @@ export const EVENT_TYPE_DESCRIPTIONS: Record<EventType, string> = {
   mitzvah: 'Mark this milestone with heartfelt gifts from family and friends',
   housewarming: 'Step into your new home with a little help from those who care',
   birthday: 'Celebrate another trip around the sun with gifts that actually matter',
+  other: 'Build a beautiful event page and registry for whatever you are celebrating',
 }
 
 /** @deprecated use EVENT_TYPE_ICON_NAMES for lucide icons */
@@ -215,6 +228,7 @@ export const EVENT_TYPE_EMOJIS: Record<EventType, string> = {
   mitzvah: '✡️',
   housewarming: '🏡',
   birthday: '🎂',
+  other: '✨',
 }
 
 // Lucide icon names for each event type — import from lucide-react at usage site
@@ -224,6 +238,7 @@ export const EVENT_TYPE_ICON_NAMES: Record<EventType, string> = {
   mitzvah:      'Star',
   housewarming: 'Home',
   birthday:     'Gift',
+  other:        'PartyPopper',
 }
 
 export const EVENT_TYPE_COLORS: Record<EventType, { primary: string; accent: string }> = {
@@ -232,6 +247,7 @@ export const EVENT_TYPE_COLORS: Record<EventType, { primary: string; accent: str
   mitzvah:      { primary: '#2C2B26', accent: '#C8BFA8' },
   housewarming: { primary: '#4A3728', accent: '#B5A98A' },
   birthday:     { primary: '#2C2B26', accent: '#8B8670' },
+  other:        { primary: '#2C2B26', accent: '#C8BFA8' },
 }
 
 export const JOYABL_FEE_RATE = 0.0498 // 4.98%

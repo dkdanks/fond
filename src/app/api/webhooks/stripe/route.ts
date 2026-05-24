@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // Stripe requires the raw body for signature verification
 export const runtime = 'nodejs'
@@ -26,7 +26,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+    if (session.metadata?.purpose === 'publish_event' && session.metadata?.event_id) {
+      const { error } = await supabase
+        .from('events')
+        .update({
+          publish_fee_status: 'paid',
+          publish_fee_paid_at: new Date().toISOString(),
+          publish_fee_checkout_session_id: session.id,
+        })
+        .eq('id', session.metadata.event_id)
+
+      if (error) {
+        console.error('[Stripe webhook] Failed to unlock publishing:', error)
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
+      }
+    }
+  }
 
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object
@@ -47,6 +66,13 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'payment_intent.payment_failed') {
     const paymentIntent = event.data.object
+
+    if (paymentIntent.metadata?.purpose === 'publish_event' && paymentIntent.metadata?.event_id) {
+      await supabase
+        .from('events')
+        .update({ publish_fee_status: 'unpaid' })
+        .eq('id', paymentIntent.metadata.event_id)
+    }
 
     await supabase
       .from('contributions')

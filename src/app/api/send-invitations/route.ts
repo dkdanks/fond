@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { eventId, guestIds, target, subject, body: emailBody } = body
+  const { eventId, guestIds, target, subject, previewText, body: emailBody } = body
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean).join(' · ')
 
   // Shared email shell — wraps any body content in the event's branded layout
-  function emailShell(innerHtml: string) {
+  function emailShell(innerHtml: string, resolvedPreviewText: string) {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
           <!-- Body content -->
           <tr>
             <td style="padding:36px 48px 32px;">
+              <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+                ${resolvedPreviewText}
+              </div>
               ${innerHtml}
             </td>
           </tr>
@@ -114,13 +117,19 @@ export async function POST(req: NextRequest) {
       const guestEventUrl = `${eventUrl}?${guestParam}`
       const guestRsvpUrl = `${eventUrl}/rsvp?${guestParam}`
 
-      const emailSubject = subject ?? `You're invited to ${event.title}`
+      function replaceTokens(value: string) {
+        return value
+          .replace(/\[Guest Name\]/g, guestName)
+          .replace(/\[Event Name\]/g, event.title)
+          .replace(/\[Host Name\]/g, hostName)
+          .replace(/\[Event Link\]/g, guestEventUrl)
+          .replace(/\[RSVP Link\]/g, guestRsvpUrl)
+      }
 
-      const customBody = emailBody
-        ? emailBody
-            .replace(/\[Guest Name\]/g, guestName)
-            .replace(new RegExp(eventUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), guestEventUrl)
-        : null
+      const emailSubject = replaceTokens(subject ?? `You're invited to [Event Name]`)
+      const resolvedPreviewText = replaceTokens(previewText ?? `Everything you need for ${event.title}, in one place.`)
+
+      const customBody = emailBody ? replaceTokens(emailBody) : null
 
       const btnPrimary = `display:inline-block;padding:14px 32px;background-color:${primaryColor};color:${bgColor};text-decoration:none;border-radius:100px;font-size:15px;font-weight:500;letter-spacing:-0.01em;`
       const btnOutline = `display:inline-block;padding:13px 32px;border:1.5px solid ${primaryColor};color:${primaryColor};text-decoration:none;border-radius:100px;font-size:15px;font-weight:500;letter-spacing:-0.01em;`
@@ -143,6 +152,8 @@ export async function POST(req: NextRequest) {
              <p style="margin:12px 0 0;text-align:center;">
                <a href="${guestRsvpUrl}" style="${btnOutline}">RSVP</a>
              </p>`
+        ,
+        resolvedPreviewText
       )
 
       await resend.emails.send({
