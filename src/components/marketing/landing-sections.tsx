@@ -628,7 +628,7 @@ export function LandingSections() {
                 Start with the vision, then go live when you are ready.
               </h2>
               <p className="text-base leading-7" style={{ color: 'rgba(250,250,247,0.78)', margin: 0 }}>
-                Build your page, shape your registry, and organise your guests before you publish. Joyabl keeps the experience simple and polished from beginning to launch.
+                Create your page, shape your registry, and organise your guests before you publish. Joyabl keeps the experience simple and polished from beginning to launch.
               </p>
             </div>
 
