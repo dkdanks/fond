@@ -1,15 +1,11 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-const RSVP_OPTIONS: Array<{ label: string; active: boolean }> = [
-  { label: 'Accepts with pleasure', active: true },
-  { label: 'Declines with love', active: false },
-  { label: 'Meal preference collected', active: false },
-]
 
 const FEATURE_CARDS = [
   {
@@ -17,36 +13,13 @@ const FEATURE_CARDS = [
     description: 'Create a beautiful page for your story, schedule and every detail.',
     accent: '#F5F0E8',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #c9c4bc 0%, #8a847c 100%)',
-          padding: 14,
-          minHeight: 220,
-        }}
-      >
-        <div
-          style={{
-            borderRadius: 18,
-            background: 'rgba(255,255,255,0.9)',
-            padding: 12,
-            minHeight: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <div style={{ height: 92, borderRadius: 14, background: 'linear-gradient(135deg, #C8BFA8 0%, #FAFAF7 100%)' }} />
-          <div style={{ width: '48%', height: 7, borderRadius: 999, background: '#2C2B26' }} />
-          <div style={{ width: '78%', height: 4, borderRadius: 999, background: '#B5A98A' }} />
-          <div style={{ width: '66%', height: 4, borderRadius: 999, background: '#D7D1C4' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 'auto' }}>
-            <div style={{ height: 44, borderRadius: 12, background: '#F5F0E8' }} />
-            <div style={{ height: 44, borderRadius: 12, background: '#FAFAF7', border: '1px solid #E8E3DA' }} />
-          </div>
-        </div>
-      </div>
+      <Image
+        src="/images/website-frame.png"
+        alt="Website feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
@@ -54,49 +27,13 @@ const FEATURE_CARDS = [
     description: 'Guide guests toward contributions that feel personal, considered, and genuinely useful - not just obligatory.',
     accent: '#C8BFA8',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          background: 'linear-gradient(180deg, #FAFAF7 0%, #F5F0E8 100%)',
-          border: '1px solid #E8E3DA',
-          padding: 16,
-          minHeight: 220,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        {[
-          ['Weekend away', '62% funded', '62%'],
-          ['New home pieces', '41% funded', '41%'],
-          ['Dinner in Italy', '78% funded', '78%'],
-        ].map(([label, meta, progress]) => (
-          <div
-            key={label}
-            style={{
-              borderRadius: 16,
-              background: '#FFFFFF',
-              padding: 14,
-              boxShadow: '0 18px 40px rgba(44,43,38,0.05)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: '#2C2B26' }}>{label}</p>
-              <p style={{ margin: 0, fontSize: 11, color: '#8B8670' }}>{meta}</p>
-            </div>
-            <div style={{ height: 7, borderRadius: 999, background: '#F5F0E8', overflow: 'hidden' }}>
-          <div
-                style={{
-                  width: progress,
-                  height: '100%',
-                  borderRadius: 999,
-                  background: 'linear-gradient(90deg, #3f3a35 0%, #959089 100%)',
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <Image
+        src="/images/registry-frame.png"
+        alt="Registry feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
@@ -104,107 +41,27 @@ const FEATURE_CARDS = [
     description: 'Meal choices, plus-ones and everything you need to know - collected in one place.',
     accent: '#6B7A5E',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #d4d0c9 0%, #938d84 100%)',
-          padding: 16,
-          minHeight: 220,
-        }}
-      >
-        <div
-          style={{
-            borderRadius: 18,
-            background: '#FFFFFF',
-            minHeight: '100%',
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <div style={{ width: '54%', height: 7, borderRadius: 999, background: '#2C2B26' }} />
-          {RSVP_OPTIONS.map(({ label, active }) => (
-            <div
-              key={label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                borderRadius: 14,
-                padding: '11px 12px',
-                background: active ? '#F5F0E8' : '#FAFAF7',
-              }}
-            >
-              <div
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  border: `1.5px solid ${active ? '#6d685f' : '#C8BFA8'}`,
-                  background: active ? '#6d685f' : 'transparent',
-                  boxShadow: active ? 'inset 0 0 0 4px #F5F0E8' : 'none',
-                }}
-              />
-              <span style={{ fontSize: 12, color: '#2C2B26' }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Image
+        src="/images/rsvp-frame.png"
+        alt="RSVP feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
   {
     title: 'Guest List',
-    description: 'Everyone accounted for, nothing slipping through. Allowing you to focus on the celebration, not the spreadsheet.',
+    description: 'Everyone tracked, nothing missed. Focus on the celebration, not the spreadsheet.',
     accent: '#8B8670',
     art: (
-      <div
-        style={{
-          borderRadius: 22,
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F0E8 100%)',
-          border: '1px solid #E8E3DA',
-          padding: 16,
-          minHeight: 220,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        {[
-          ['The Brooks Family', '4 attending'],
-          ['Mia Chen', 'Awaiting reply'],
-          ['Alex & Samir', 'Meal noted'],
-        ].map(([name, status], index) => (
-          <div
-            key={name}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              borderRadius: 16,
-              padding: 14,
-              background: index === 0 ? '#FAFAF7' : '#FFFFFF',
-              boxShadow: '0 18px 40px rgba(44,43,38,0.04)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: index === 1 ? '#d2cdc5' : '#8a837b',
-                  opacity: 0.85,
-                }}
-              />
-              <span style={{ fontSize: 13, color: '#2C2B26', fontWeight: 500 }}>{name}</span>
-            </div>
-            <span style={{ fontSize: 11, color: '#8B8670' }}>{status}</span>
-          </div>
-        ))}
-      </div>
+      <Image
+        src="/images/guestlist-frame.png"
+        alt="Guest list feature preview"
+        width={600}
+        height={400}
+        className="w-full h-auto rounded-[18px]"
+      />
     ),
   },
 ]
@@ -213,7 +70,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '01',
     title: 'Create your event page',
-    body: "Create a page that feels as considered as the occasion itself. Your story, your schedule, every detail presented beautifully.",
+    body: "Create a personalised event page that feels as considered as the occasion itself. Your guests see something beautiful, and you stay in control of every detail.",
     accent: '#8B8670',
     visual: (
       <div
@@ -251,7 +108,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '02',
     title: 'Invite your guests',
-    body: 'Add your guest list, collect RSVPs, and gather everything you need — meal choices, plus-ones, dietary notes - all in one place.',
+    body: 'Send a personalised invite to your entire guest list at once. From the moment they open it, everything they need is right there - event details, RSVP, and gift registry.',
     accent: '#6B7A5E',
     visual: (
       <div
@@ -313,8 +170,8 @@ const FLOW_STEPS = [
   },
   {
     eyebrow: '03',
-    title: "Set up your registry",
-    body: "Guide guests toward contributions that feel personal, considered, and genuinely useful for your next chapter.",
+    title: 'Receive what matters',
+    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that matters to you.",
     accent: '#B5A98A',
     visual: (
       <div
@@ -377,7 +234,7 @@ const FAQS = [
   },
   {
     question: 'What types of events can I use Joyabl for?',
-    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it deserves to be celebrated properly, Joyabl is built for it.",
+    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it's worth celebrating, Joyabl works for it.",
   },
   {
     question: "Can I build my page before I'm ready to publish?",
@@ -473,7 +330,7 @@ function FlowSection() {
             Less admin. More anticipation.
           </h2>
           <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 620 }}>
-           Joyabl handles the details so you can spend your energy on the things that actually deserve it.
+            Joyabl takes care of the practical parts so you can stay in the moment that matters.
           </p>
         </div>
 
