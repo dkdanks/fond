@@ -112,7 +112,7 @@ export function HeroSection() {
                 ...fadeUp(0),
               }}
             >
-              Make your celebration feel as beautiful online as it does in real life.
+              Your celebration deserves a home as beautiful as the occasion itself.
             </h1>
 
             <p
@@ -127,7 +127,7 @@ export function HeroSection() {
                 ...fadeUp(0.12),
               }}
             >
-              Joyabl brings your website, registry, RSVPs, and guest list into one considered place that feels polished from the first click.
+              Your event website, RSVPs, guest list and registry - all in one considered place.
             </p>
 
             <div

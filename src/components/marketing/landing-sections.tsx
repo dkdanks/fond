@@ -51,7 +51,7 @@ const FEATURE_CARDS = [
   },
   {
     title: 'Registry',
-    description: 'Guide guests toward contributions that feel thoughtful, personal, and genuinely useful for your next chapter.',
+    description: 'Guide guests toward contributions that feel personal, considered, and genuinely useful - not just obligatory.',
     accent: '#C8BFA8',
     art: (
       <div
@@ -156,7 +156,7 @@ const FEATURE_CARDS = [
   },
   {
     title: 'Guest List',
-    description: 'Everyone tracked, nothing missed. Focus on the celebration, not the spreadsheet.',
+    description: 'Everyone accounted for, nothing slipping through. Allowing you to focus on the celebration, not the spreadsheet.',
     accent: '#8B8670',
     art: (
       <div
@@ -213,7 +213,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '01',
     title: 'Create your event page',
-    body: "Create a personalised event page that feels as considered as the occasion itself. Your guests see something beautiful, and you stay in control of every detail.",
+    body: "Create a page that feels as considered as the occasion itself. Your story, your schedule, every detail presented beautifully.",
     accent: '#8B8670',
     visual: (
       <div
@@ -251,7 +251,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '02',
     title: 'Invite your guests',
-    body: 'Send a personalised invite to your entire guest list at once. From the moment they open it, everything they need is right there - event details, RSVP, and gift registry.',
+    body: 'Add your guest list, collect RSVPs, and gather everything you need — meal choices, plus-ones, dietary notes - all in one place.',
     accent: '#6B7A5E',
     visual: (
       <div
@@ -313,8 +313,8 @@ const FLOW_STEPS = [
   },
   {
     eyebrow: '03',
-    title: 'Receive what matters',
-    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that actually matters to you.",
+    title: "Set up your registry",
+    body: "Guide guests toward contributions that feel personal, considered, and genuinely useful for your next chapter.",
     accent: '#B5A98A',
     visual: (
       <div
@@ -377,7 +377,7 @@ const FAQS = [
   },
   {
     question: 'What types of events can I use Joyabl for?',
-    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it's worth celebrating, Joyabl works for it.",
+    answer: "Weddings, baby showers, birthdays, housewarmings, and more. If it deserves to be celebrated properly, Joyabl is built for it.",
   },
   {
     question: "Can I build my page before I'm ready to publish?",
@@ -473,7 +473,7 @@ function FlowSection() {
             Less admin. More anticipation.
           </h2>
           <p className="text-base leading-7" style={{ color: '#6B6255', maxWidth: 620 }}>
-            Joyabl takes care of the practical parts so you can stay in the moment that matters.
+           Joyabl handles the details so you can spend your energy on the things that actually deserve it.
           </p>
         </div>
 
@@ -709,7 +709,7 @@ export function LandingSections() {
               FAQ
             </p>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 46px)', lineHeight: 1.04, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500, margin: '0 0 14px' }}>
-              A few things people usually want to know.
+              A few things worth knowing before you start.
             </h2>
             <p className="text-base leading-7" style={{ color: '#6B6255', margin: 0 }}>
               The essentials, without making you dig for them.
