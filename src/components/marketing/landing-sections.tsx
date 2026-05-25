@@ -24,7 +24,7 @@ const FEATURE_CARDS = [
   },
   {
     title: 'Registry',
-    description: 'Guide guests toward contributions that feel thoughtful, personal, and genuinely useful for your next chapter.',
+    description: 'Guide guests toward contributions that feel personal, considered, and genuinely useful - not just obligatory.',
     accent: '#C8BFA8',
     art: (
       <Image
@@ -171,7 +171,7 @@ const FLOW_STEPS = [
   {
     eyebrow: '03',
     title: 'Receive what matters',
-    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that actually matters to you.",
+    body: "For guests who'd like to give, the experience feels warm and personal - and every contribution goes toward something that matters to you.",
     accent: '#B5A98A',
     visual: (
       <div
@@ -566,7 +566,7 @@ export function LandingSections() {
               FAQ
             </p>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 46px)', lineHeight: 1.04, letterSpacing: '-0.05em', color: '#2C2B26', fontWeight: 500, margin: '0 0 14px' }}>
-              A few things people usually want to know.
+              A few things worth knowing before you start.
             </h2>
             <p className="text-base leading-7" style={{ color: '#6B6255', margin: 0 }}>
               The essentials, without making you dig for them.
